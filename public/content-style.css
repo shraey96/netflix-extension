@@ -26,11 +26,25 @@
   fill: #fff;
   transition: all 0.3s ease-in-out;
 }
-.extension-video-toggle-container span::hover,
-.extension-video-toggle-container span.extension-selector-active {
-  background: rgba(255, 255, 255, 1);
+.extension-video-toggle-container span.active,
+.extension-video-toggle-container span::hover {
+  background: #fff;
 }
-.extension-video-toggle-container span::hover svg path,
-.extension-video-toggle-container span.extension-selector-active svg path {
+.extension-video-toggle-container span.active svg path,
+.extension-video-toggle-container span::hover svg path {
   fill: #000;
+}
+
+.extension-card-dim {
+  opacity: 0.3;
+}
+
+extension-card-show {
+  position: relative !important;
+  opacity: 1;
+}
+
+.extension-card-hide {
+  position: absolute !important;
+  top: -100vh;
 }
