@@ -1,0 +1,36 @@
+.extension-video-toggle-container {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+}
+.extension-video-toggle-container span {
+  border: 1px solid #999;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  margin-left: 10px;
+  display: flex;
+  height: 22px;
+  width: 22px;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease-in-out;
+}
+.extension-video-toggle-container span svg {
+  height: 12px;
+  width: 12px;
+}
+.extension-video-toggle-container span svg path {
+  fill: #fff;
+  transition: all 0.3s ease-in-out;
+}
+.extension-video-toggle-container span::hover,
+.extension-video-toggle-container span.extension-selector-active {
+  background: rgba(255, 255, 255, 1);
+}
+.extension-video-toggle-container span::hover svg path,
+.extension-video-toggle-container span.extension-selector-active svg path {
+  fill: #000;
+}
