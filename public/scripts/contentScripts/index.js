@@ -8,6 +8,14 @@ const settings = {
   matchScoreFilter: false,
 }
 
+const shaktiAPIValues =
+  window.netflix.appContext.state.model.models.serverDefs.data.BUILD_IDENTIFIER
+const shaktiAPIAuthURL = netflix.reactContext.models.userInfo.data.authURL
+const apiURL = `https://www.netflix.com/nq/website/memberapi/${shaktiAPIValues}/pathEvaluator?webp=true&drmSystem=widevine&isVolatileBillboardsEnabled=true&routeAPIRequestsThroughFTL=false&isTop10Supported=true&isLocoSupported=false&categoryCraversEnabled=false&hasVideoMerchInBob=true&falcor_server=0.1.0&withSize=true&materialize=true&original_path=/shakti/${shaktiAPIValues}/pathEvaluator`
+
+const pendingMatchAPIRequests = {}
+const successMatchAPIRequests = {}
+
 chrome.storage.local.get(
   { videoStates: {}, undoList: [], extensionSettings: {} },
   (r) => {
@@ -47,6 +55,13 @@ const addMarkersToCard = () => {
       const divNode = document.createElement("div")
       x.setAttribute("data-extension-marked", videoId)
 
+      if (
+        !pendingMatchAPIRequests[videoId] &&
+        !successMatchAPIRequests[videoId]
+      ) {
+        pendingMatchAPIRequests[videoId] = true
+      }
+
       let elemClass = ""
       const currentVideoState = videoStates[videoId]
       console.log("currentVideoState ===> ", currentVideoState)
@@ -78,6 +93,9 @@ const addMarkersToCard = () => {
     })
 
     addClickListeners()
+    setTimeout(() => {
+      makeMatchAPIFetchRequest()
+    }, 3000)
   }
 }
 
@@ -159,41 +177,28 @@ const resetCardClasses = (elem) => {
   elem.querySelector(".slider-refocus").classList.remove("extension-card-dim")
 }
 
-const sendMessage = (msg) => {
-  chrome.runtime.sendMessage(msg, (response) => {
-    console.log(response)
+const makeMatchAPIFetchRequest = () => {
+  const data = new URLSearchParams()
+  data.append("authURL", authURL)
+  Object.keys(pendingMatchAPIRequests).forEach((k) => {
+    data.append("path", JSON.stringify(["videos", k, "userRating", "length"]))
+  })
+  // var dataA = ["videos",70229042,"userRating","length"]
+  // data.append('path', JSON.stringify(dataA))
+
+  fetch(apiURL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+    },
+    body: data,
   })
 }
-
-// setInterval(() => {
-//   addMarkersToCard()
-// }, 1000)
-
-// mutation observer for is bob open //
-// selected btn click //
-
-// addMarkersToCard()
-
-// const makeFetchRequest = () => {
-//   var data = new URLSearchParams();
-// var dataA = ["videos",70229042,"userRating","length"]
-// data.append('path', JSON.stringify(dataA))
-
-// fetch(apiURL, {
-//   method: 'POST',
-//   headers: {
-//     'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
-//   },
-//   body: data
-// })
-
-// }
 
 const undoVideoState = (videoId) => {
   Array.from(
     document.querySelectorAll(`[data-extension-marked="${videoId}"]`)
   ).forEach((f) => {
-    console.log(9999, f)
     f.closest(".slider-item").classList.remove("extension-card-hide")
   })
 }
@@ -216,3 +221,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   sendResponse({ received: true })
 })
+
+const sendMessage = (msg) => {
+  chrome.runtime.sendMessage(msg, (response) => {
+    console.log(response)
+  })
+}
