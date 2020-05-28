@@ -1,6 +1,33 @@
 console.log("~~ Running Content Script ~~")
 
-const videoStates = {}
+let videoStates = {}
+let undoList = []
+
+const settings = {
+  isKidsMode: false,
+  matchScoreFilter: false,
+}
+
+chrome.storage.local.get(
+  { videoStates: {}, undoList: [], extensionSettings: {} },
+  (r) => {
+    console.log("Value currently is ", r)
+
+    if (r) {
+      console.log(909090, r, r.extensionSettings)
+      videoStates = { ...videoStates, ...(r.videoStates || {}) }
+      undoList = [...undoList, ...(r.undoList || [])]
+
+      settings.isKidsMode = (r.extensionSettings || {}).isKidsMode || false
+      settings.matchScoreFilter =
+        (r.extensionSettings || {}).matchScoreFilter || false
+    }
+
+    setInterval(() => {
+      addMarkersToCard()
+    }, 500)
+  }
+)
 
 const addMarkersToCard = () => {
   const videoCardDOM = document.querySelectorAll(
@@ -22,15 +49,15 @@ const addMarkersToCard = () => {
 
       let elemClass = ""
       const currentVideoState = videoStates[videoId]
-
+      console.log("currentVideoState ===> ", currentVideoState)
       if (currentVideoState) {
         resetCardClasses(x)
+
         elemClass = `extension-card-${currentVideoState.action}`
         if (currentVideoState.action === "dim") {
           x.querySelector(".slider-refocus").classList.add("extension-card-dim")
         } else {
-          console.log(4444, elemClass)
-          data.parentElement.classList.add(elemClass)
+          data.closest(".slider-item").classList.add(elemClass)
         }
       }
 
@@ -71,8 +98,6 @@ const addClickListeners = () => {
         childElement: a,
       }
 
-      console.log(4444, payload)
-
       handleShowToggleClick(payload)
     })
 
@@ -82,52 +107,49 @@ const addClickListeners = () => {
 
 const handleShowToggleClick = (payload) => {
   const { videoId, videoName, actionType } = payload
-  // sendMessage({
-  //   videoId,
-  //   videoName,
-  //   action: actionType,
-  //   type: "updateVideoState",
-  // })
-  // const x = {
-  //   videoId,
-  //   videoName,
-  //   action: actionType,
-  //   type: "updateVideoState",
-  // }
+  let actionToSet = actionType
+  if (
+    actionType === "dim" &&
+    videoStates[videoId] &&
+    videoStates[videoId].action === "dim"
+  ) {
+    actionToSet = "show"
+  }
+
   videoStates[videoId] = {
     videoId,
     videoName,
-    action: actionType,
+    action: actionToSet,
   }
 
   console.log(505050, videoStates)
 
-  const videoElementDOM = document.querySelector(
-    `.title-card-container[data-extension-marked="${videoId}"]`
+  const videoElementDOM = Array.from(
+    document.querySelectorAll(
+      `.title-card-container[data-extension-marked="${videoId}"]`
+    )
   )
-  console.log(videoElementDOM)
-  if (videoElementDOM) {
-    resetCardClasses(videoElementDOM)
-    // videoElementDOM.parentElement.classList.remove("extension-card-hide")
-    // videoElementDOM.parentElement.classList.remove("extension-card-show")
-    // videoElementDOM
-    //   .querySelector(".slider-refocus")
-    //   .classList.remove("extension-card-dim")
-    switch (actionType) {
-      case "dim":
-        videoElementDOM
-          .querySelector(".slider-refocus")
-          .classList.add("extension-card-dim")
-        break
-      case "hide":
-        videoElementDOM.parentElement.classList.add("extension-card-hide")
-        break
-      case "show":
-        videoElementDOM.parentElement.classList.add("extension-card-show")
-        break
-      default:
-        break
-    }
+
+  if (videoElementDOM.length > 0) {
+    videoElementDOM.forEach((f) => {
+      resetCardClasses(f)
+      if (actionType === "dim") {
+        f.querySelector(".slider-refocus").classList.add("extension-card-dim")
+      }
+
+      if (actionType === "hide") {
+        f.parentElement.classList.add("extension-card-hide")
+      }
+
+      if (actionType === "show") {
+        f.parentElement.classList.add("extension-card-show")
+      }
+    })
+
+    chrome.storage.local.set({ videoStates: videoStates })
+    undoList.push(videoId)
+    console.log(606060, undoList)
+    chrome.storage.local.set({ undoList: [videoId, ...undoList] })
   }
 }
 
@@ -143,11 +165,54 @@ const sendMessage = (msg) => {
   })
 }
 
-setInterval(() => {
-  addMarkersToCard()
-}, 1000)
+// setInterval(() => {
+//   addMarkersToCard()
+// }, 1000)
 
 // mutation observer for is bob open //
 // selected btn click //
 
-addMarkersToCard()
+// addMarkersToCard()
+
+// const makeFetchRequest = () => {
+//   var data = new URLSearchParams();
+// var dataA = ["videos",70229042,"userRating","length"]
+// data.append('path', JSON.stringify(dataA))
+
+// fetch(apiURL, {
+//   method: 'POST',
+//   headers: {
+//     'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+//   },
+//   body: data
+// })
+
+// }
+
+const undoVideoState = (videoId) => {
+  Array.from(
+    document.querySelectorAll(`[data-extension-marked="${videoId}"]`)
+  ).forEach((f) => {
+    console.log(9999, f)
+    f.closest(".slider-item").classList.remove("extension-card-hide")
+  })
+}
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log("GOT MESSAGE ===> ", request)
+  if (request.type === "settingsUpdate") {
+    settings.isKidsMode = request.isKidsMode || false
+    settings.matchScoreFilter = request.matchScoreFilter || false
+    console.log("@@@@@", settings)
+  }
+  if (request.type === "itemUndo") {
+    delete videoStates[request.videoId]
+    undoVideoState(request.videoId)
+    chrome.storage.local.set({ videoStates: videoStates })
+    undoList = undoList.filter((f) => f !== request.videoId)
+    chrome.storage.local.set({
+      undoList: undoList,
+    })
+  }
+  sendResponse({ received: true })
+})

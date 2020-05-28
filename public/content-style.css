@@ -5,6 +5,8 @@
   z-index: 2;
   display: flex;
   align-items: center;
+  animation-name: opacityEnter;
+  animation-duration: 0.3s;
 }
 .extension-video-toggle-container span {
   border: 1px solid #999;
@@ -42,9 +44,19 @@
 extension-card-show {
   position: relative !important;
   opacity: 1;
+  top: unset;
 }
 
 .extension-card-hide {
-  position: absolute !important;
+  position: fixed !important;
   top: -100vh;
+}
+
+@keyframes opacityEnter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }

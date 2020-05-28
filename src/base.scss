@@ -1,0 +1,62 @@
+* {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  box-sizing: border-box;
+
+  &::-webkit-scrollbar {
+    background-color: transparent;
+    width: 0;
+    opacity: 0.4;
+  }
+
+  &::-webkit-scrollbar-track {
+    background-color: transparent;
+    opacity: 0.4;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 16px;
+    opacity: 0;
+  }
+
+  &::-webkit-scrollbar-button {
+    display: none;
+  }
+}
+
+.app-wrapper {
+  height: 200px;
+  width: 300px;
+  padding: 20px;
+  .controls {
+    .checbox-container {
+      display: flex;
+      align-items: center;
+      .label {
+        margin-right: 8px;
+      }
+      .input-checkbox {
+        margin-top: 1px;
+      }
+    }
+    .match-score {
+      input {
+        border: 1px solid;
+        width: 60px;
+        padding: 4px 10px;
+        padding-right: 2px;
+      }
+    }
+    .buttons-container {
+      margin-top: 10px;
+      button {
+        padding: 8px;
+        border-radius: 4px;
+        margin-right: 8px;
+        cursor: pointer;
+      }
+    }
+  }
+}
