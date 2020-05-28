@@ -22,7 +22,6 @@ chrome.storage.local.get(
     console.log("Value currently is ", r)
 
     if (r) {
-      console.log(909090, r, r.extensionSettings)
       videoStates = { ...videoStates, ...(r.videoStates || {}) }
       undoList = [...undoList, ...(r.undoList || [])]
 
@@ -64,10 +63,10 @@ const addMarkersToCard = () => {
 
       let elemClass = ""
       const currentVideoState = videoStates[videoId]
-      console.log("currentVideoState ===> ", currentVideoState)
+
       if (currentVideoState) {
         resetCardClasses(x)
-
+        console.log("currentVideoState ===> ", currentVideoState)
         elemClass = `extension-card-${currentVideoState.action}`
         if (currentVideoState.action === "dim") {
           x.querySelector(".slider-refocus").classList.add("extension-card-dim")
@@ -166,8 +165,7 @@ const handleShowToggleClick = (payload) => {
 
     chrome.storage.local.set({ videoStates: videoStates })
     undoList.push(videoId)
-    console.log(606060, undoList)
-    chrome.storage.local.set({ undoList: [videoId, ...undoList] })
+    chrome.storage.local.set({ undoList: undoList })
   }
 }
 
