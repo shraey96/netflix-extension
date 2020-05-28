@@ -8,13 +8,10 @@ const settings = {
   matchScoreFilter: false,
 }
 
-const shaktiAPIValues =
-  window.netflix.appContext.state.model.models.serverDefs.data.BUILD_IDENTIFIER
-const shaktiAPIAuthURL = netflix.reactContext.models.userInfo.data.authURL
-const apiURL = `https://www.netflix.com/nq/website/memberapi/${shaktiAPIValues}/pathEvaluator?webp=true&drmSystem=widevine&isVolatileBillboardsEnabled=true&routeAPIRequestsThroughFTL=false&isTop10Supported=true&isLocoSupported=false&categoryCraversEnabled=false&hasVideoMerchInBob=true&falcor_server=0.1.0&withSize=true&materialize=true&original_path=/shakti/${shaktiAPIValues}/pathEvaluator`
-
 const pendingMatchAPIRequests = {}
 const successMatchAPIRequests = {}
+
+// chrome.tabs.executeScript(null, { file: "variableGetter.js" })
 
 chrome.storage.local.get(
   { videoStates: {}, undoList: [], extensionSettings: {} },
@@ -40,6 +37,7 @@ const addMarkersToCard = () => {
   const videoCardDOM = document.querySelectorAll(
     ".title-card-container:not([data-extension-marked])"
   )
+
   if (videoCardDOM) {
     Array.from(videoCardDOM).forEach((x) => {
       const data = x.querySelector(".ptrack-content .slider-refocus")
@@ -93,7 +91,7 @@ const addMarkersToCard = () => {
 
     addClickListeners()
     setTimeout(() => {
-      makeMatchAPIFetchRequest()
+      // makeMatchAPIFetchRequest()
     }, 3000)
   }
 }
@@ -106,7 +104,6 @@ const addClickListeners = () => {
   ).forEach((a) => {
     a.addEventListener("click", () => {
       const parentElement = a.parentElement
-
       const payload = {
         videoId: parentElement.getAttribute("data-video-id"),
         videoName: parentElement.getAttribute("data-video-name"),
@@ -176,10 +173,17 @@ const resetCardClasses = (elem) => {
 }
 
 const makeMatchAPIFetchRequest = () => {
+  const netflixVarDOM = document.querySelector("[data-a1]")
+
+  const shaktiAPIValues = netflixVarDOM.getAttribute("data-a1")
+  const shaktiAPIAuthURL = netflixVarDOM.getAttribute("data-a2")
+  const apiURL = `https://www.netflix.com/nq/website/memberapi/${shaktiAPIValues}/pathEvaluator?webp=true&drmSystem=widevine&isVolatileBillboardsEnabled=true&routeAPIRequestsThroughFTL=false&isTop10Supported=true&isLocoSupported=false&categoryCraversEnabled=false&hasVideoMerchInBob=true&falcor_server=0.1.0&withSize=true&materialize=true&original_path=/shakti/${shaktiAPIValues}/pathEvaluator`
+  console.log(606060, apiURL)
   const data = new URLSearchParams()
-  data.append("authURL", authURL)
-  Object.keys(pendingMatchAPIRequests).forEach((k) => {
-    data.append("path", JSON.stringify(["videos", k, "userRating", "length"]))
+  data.append("authURL", shaktiAPIAuthURL)
+  Object.keys(pendingMatchAPIRequests).forEach((k, j) => {
+    if (j < 4)
+      data.append("path", JSON.stringify(["videos", k, "userRating", "length"]))
   })
 
   console.log("## SENDING FETCH REQUEST ##")
@@ -194,6 +198,14 @@ const makeMatchAPIFetchRequest = () => {
     .then((response) => response.json())
     .then((data) => {
       console.log("response data ===> ", data)
+      Object.keys(data.jsonGraph.videos).forEach((a) => {
+        delete pendingMatchAPIRequests[a]
+        successMatchAPIRequests[a] = true
+        videoStates[a] = {
+          ...videoStates[a],
+          matchScore: (a.userRating.value || {}).matchScore || false,
+        }
+      })
     })
     .catch((err) => console.log("response err ===> ", err))
 }

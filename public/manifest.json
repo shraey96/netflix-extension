@@ -14,7 +14,10 @@
   "content_scripts": [
     {
       "matches": ["*://*.netflix.com/*"],
-      "js": ["scripts/contentScripts/index.js"],
+      "js": [
+        "scripts/contentScripts/variableGetter.js",
+        "scripts/contentScripts/index.js"
+      ],
       "css": ["content-style.css"],
       "run_at": "document_end"
     }
