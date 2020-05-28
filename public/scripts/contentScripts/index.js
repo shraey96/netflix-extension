@@ -183,8 +183,8 @@ const makeMatchAPIFetchRequest = () => {
   Object.keys(pendingMatchAPIRequests).forEach((k) => {
     data.append("path", JSON.stringify(["videos", k, "userRating", "length"]))
   })
-  // var dataA = ["videos",70229042,"userRating","length"]
-  // data.append('path', JSON.stringify(dataA))
+
+  console.log("## SENDING FETCH REQUEST ##")
 
   fetch(apiURL, {
     method: "POST",
@@ -193,6 +193,11 @@ const makeMatchAPIFetchRequest = () => {
     },
     body: data,
   })
+    .then((response) => response.json())
+    .then((data) => {
+      console.log("response data ===> ", data)
+    })
+    .catch((err) => console.log("response err ===> ", err))
 }
 
 const undoVideoState = (videoId) => {
