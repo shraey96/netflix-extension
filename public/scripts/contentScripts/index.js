@@ -6,12 +6,17 @@ let undoList = []
 const settings = {
   isKidsMode: false,
   matchScoreFilter: false,
+  isDesignMode: false,
+}
+
+const statusMaps = {
+  hide: 0,
+  dim: 1,
+  show: 2,
 }
 
 const pendingMatchAPIRequests = {}
 const successMatchAPIRequests = {}
-
-// chrome.tabs.executeScript(null, { file: "variableGetter.js" })
 
 chrome.storage.local.get(
   { videoStates: {}, undoList: [], extensionSettings: {} },
@@ -25,6 +30,7 @@ chrome.storage.local.get(
       settings.isKidsMode = (r.extensionSettings || {}).isKidsMode || false
       settings.matchScoreFilter =
         (r.extensionSettings || {}).matchScoreFilter || false
+      settings.isDesignMode = (r.extensionSettings || {}).isDesignMode || false
     }
 
     setInterval(() => {
@@ -223,6 +229,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === "settingsUpdate") {
     settings.isKidsMode = request.isKidsMode || false
     settings.matchScoreFilter = request.matchScoreFilter || false
+    settings.isDesignMode = request.isDesignMode || false
+
     console.log("@@@@@", settings)
   }
   if (request.type === "itemUndo") {
@@ -241,4 +249,32 @@ const sendMessage = (msg) => {
   chrome.runtime.sendMessage(msg, (response) => {
     console.log(response)
   })
+}
+
+const getShowToggleStatus = (videoId) => {
+  // 0 hidden
+  // 1 dim
+  // 2 visible
+
+  const { isKidsMode, isDesignMode } = settings
+
+  let status = 0
+
+  if (isDesignMode) {
+    if (!videoStates[videoId]) {
+      isKidsMode ? (status = 1) : (status = 2)
+    } else {
+      if (videoStates[videoId].action === "show") {
+        status = 2
+      } else {
+        status = 1
+      }
+    }
+  } else {
+    if (!videoStates[videoId]) {
+      isKidsMode ? (status = 0) : (status = 2)
+    } else {
+      status = statusMaps[videoStates[videoId].action] || 0
+    }
+  }
 }

@@ -57,6 +57,23 @@ const App = () => {
     <div className="app-wrapper">
       <div className="controls">
         <div className="checbox-container">
+          <label className="label" for="designMode">
+            Design Mode
+          </label>
+          <input
+            type="checkbox"
+            name="designMode"
+            className="input-checkbox"
+            checked={settings.isDesignMode}
+            onChange={() =>
+              setSettings((prevSettings) => ({
+                ...settings,
+                isDesignMode: !prevSettings.isDesignMode,
+              }))
+            }
+          />
+        </div>
+        <div className="checbox-container">
           <label className="label" for="kidsMode">
             Kids Mode
           </label>
