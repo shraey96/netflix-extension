@@ -70,6 +70,7 @@ const App = () => {
           <input
             type="checkbox"
             name="designMode"
+            id="designMode"
             className="input-checkbox"
             checked={settings.isDesignMode}
             onChange={() =>
@@ -84,12 +85,10 @@ const App = () => {
           </label>
         </div>
         <div className="checbox-container">
-          <label className="label" for="kidsMode">
-            Kids Mode
-          </label>
           <input
             type="checkbox"
             name="kidsMode"
+            id="kidsMode"
             className="input-checkbox"
             checked={settings.isKidsMode}
             onChange={() =>
@@ -99,6 +98,9 @@ const App = () => {
               }))
             }
           />
+          <label className="label" for="kidsMode">
+            Kids Mode
+          </label>
         </div>
         <div className="match-score">
           <label for="matchScore">Filter Match Score: </label>

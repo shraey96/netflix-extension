@@ -10,6 +10,7 @@
 }
 .extension-video-toggle-container span {
   border: 1px solid #999;
+  cursor: pointer;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.5);
   margin-left: 10px;
@@ -29,11 +30,11 @@
   transition: all 0.3s ease-in-out;
 }
 .extension-video-toggle-container span.active,
-.extension-video-toggle-container span::hover {
+.extension-video-toggle-container span:hover {
   background: #fff;
 }
 .extension-video-toggle-container span.active svg path,
-.extension-video-toggle-container span::hover svg path {
+.extension-video-toggle-container span:hover svg path {
   fill: #000;
 }
 
