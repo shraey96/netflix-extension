@@ -1,12 +1,14 @@
 /*global chrome*/
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import "./base.scss"
 
 const App = () => {
   const [settings, setSettings] = useState({})
   const [undoList, setUndoList] = useState([])
   const [netflixTabs, setNetflixTabs] = useState([])
+
+  const prevDesignMode = useRef(settings.isDesignMode || false)
 
   const setChanges = () => {
     chrome.storage.local.set({ extensionSettings: settings }, (value) => {
@@ -32,6 +34,14 @@ const App = () => {
     )
   }, [])
 
+  useEffect(() => {
+    if (prevDesignMode.current !== settings.isDesignMode) {
+      // send message
+      sendMsg({ type: "toggleDesignMode", isDesignMode: settings.isDesignMode })
+      prevDesignMode.current = settings.isDesignMode
+    }
+  }, [settings.isDesignMode])
+
   const attachMsgListener = () => {}
 
   const sendMsg = (message) => {
@@ -51,15 +61,12 @@ const App = () => {
     }
   }
 
-  console.log(111, settings, undoList)
+  console.log(111, settings, undoList, prevDesignMode)
 
   return (
     <div className="app-wrapper">
       <div className="controls">
         <div className="checbox-container">
-          <label className="label" for="designMode">
-            Design Mode
-          </label>
           <input
             type="checkbox"
             name="designMode"
@@ -72,6 +79,9 @@ const App = () => {
               }))
             }
           />
+          <label className="label" for="designMode">
+            Design Mode
+          </label>
         </div>
         <div className="checbox-container">
           <label className="label" for="kidsMode">
