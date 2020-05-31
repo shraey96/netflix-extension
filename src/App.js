@@ -36,7 +36,17 @@ const App = () => {
 
   useEffect(() => {
     if (prevDesignMode.current !== settings.isDesignMode) {
-      // send message
+      chrome.storage.local.get(
+        { extensionSettings: {}, undoList: [] },
+        (result) => {
+          console.log("Value currently is ", result)
+          const updatedSettings = {
+            ...(result.extensionSettings || {}),
+            isDesignMode: settings.isDesignMode,
+          }
+          chrome.storage.local.set({ extensionSettings: updatedSettings })
+        }
+      )
       sendMsg({ type: "toggleDesignMode", isDesignMode: settings.isDesignMode })
       prevDesignMode.current = settings.isDesignMode
     }
