@@ -1,6 +1,6 @@
 {
   "name": "Netflix Extension",
-  "version": "0.0.1",
+  "version": "0.0.12",
   "short_name": "Netflix Extension",
   "description": "A chrome extension to control create custom netflix Profiles",
   "browser_action": {

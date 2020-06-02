@@ -65,7 +65,42 @@ const addMarkersToCard = (reInit = false) => {
 
   const bigRowDOM = document.querySelector('[data-list-context="bigRow"]')
 
+  const volatileBillBoardDOM = document.querySelector(
+    ".volatile-billboard-animations-container"
+  )
+
   const { isDesignMode } = settings
+
+  if (volatileBillBoardDOM) {
+    const videoName = volatileBillBoardDOM
+      .querySelector(".billboard-title img")
+      .getAttribute("title")
+
+    const videoId = volatileBillBoardDOM
+      .querySelector(`a[data-uia="play-button"]`)
+      .getAttribute("href")
+      .match(/\/(.*)\?/)
+      .pop()
+      .replace("watch/", "")
+
+    addToFetchQueue(videoId)
+
+    const moddedVideoState = getShowToggleStatus(videoId)
+
+    if (typeof moddedVideoState !== undefined) {
+      resetVolatileContainerClasses()
+      elemClass = `extension-card-${statusMapsReverse[moddedVideoState]}`
+      if (moddedVideoState === 1) {
+        volatileBillBoardDOM
+          .querySelector(".billboard-row")
+          .classList.add(elemClass)
+      } else {
+        volatileBillBoardDOM.classList.add(elemClass)
+      }
+    }
+
+    addControllerCard(volatileBillBoardDOM, videoId, videoName)
+  }
 
   if (videoCardDOM) {
     Array.from(videoCardDOM).forEach((x) => {
@@ -219,13 +254,6 @@ const addClickListeners = () => {
 const handleShowToggleClick = (payload) => {
   const { videoId, videoName, actionType, parentElement } = payload
   let actionToSet = actionType
-  // if (
-  //   actionType === "dim" &&
-  //   videoStates[videoId] &&
-  //   videoStates[videoId].action === "dim"
-  // ) {
-  //   actionToSet = undefined
-  // }
 
   if (videoStates[videoId] && videoStates[videoId].action === actionToSet) {
     delete videoStates[videoId]
@@ -265,22 +293,41 @@ const handleShowToggleClick = (payload) => {
         f.closest(".slider-item").classList.add("extension-card-show")
       }
     })
+  }
 
-    Array.from(
-      parentElement.querySelectorAll(".extension-video-toggle-action")
-    ).forEach((e) => {
-      console.log(3333, e)
-      if (e.getAttribute("data-action-type") === actionToSet) {
-        e.classList.add("active")
-      } else {
+  Array.from(
+    document.querySelectorAll(
+      `.extension-video-toggle-container[data-video-id="${videoId}"]`
+    )
+  ).forEach((a) => {
+    Array.from(a.querySelectorAll(".extension-video-toggle-action")).forEach(
+      (e) => {
+        if (e.getAttribute("data-action-type") === actionToSet) {
+          e.classList.add("active")
+        } else {
+          e.classList.remove("active")
+        }
+      }
+    )
+  })
+
+  chrome.storage.local.set({ videoStates: videoStates })
+  undoList = [videoId, ...undoList.filter((v) => v !== videoId)]
+  chrome.storage.local.set({ undoList: undoList })
+}
+
+const resetIconActiveClasses = (videoId) => {
+  Array.from(
+    document.querySelectorAll(
+      `.extension-video-toggle-container[data-video-id="${videoId}"]`
+    )
+  ).forEach((a) => {
+    Array.from(a.querySelectorAll(".extension-video-toggle-action")).forEach(
+      (e) => {
         e.classList.remove("active")
       }
-    })
-
-    chrome.storage.local.set({ videoStates: videoStates })
-    undoList = [videoId, ...undoList]
-    chrome.storage.local.set({ undoList: undoList })
-  }
+    )
+  })
 }
 
 const resetCardClasses = (elem) => {
@@ -309,6 +356,17 @@ const resetBigRowDOMClasses = () => {
   bigRowDOM.classList.remove("extension-card-hide")
   document
     .querySelector('[data-list-context="bigRow"] .bigRow')
+    .classList.remove("extension-card-dim")
+}
+
+const resetVolatileContainerClasses = () => {
+  const volatileBillBoardDOM = document.querySelector(
+    ".volatile-billboard-animations-container"
+  )
+  volatileBillBoardDOM.classList.remove("extension-card-show")
+  volatileBillBoardDOM.classList.remove("extension-card-hide")
+  volatileBillBoardDOM
+    .querySelector(".billboard-row")
     .classList.remove("extension-card-dim")
 }
 
@@ -375,6 +433,7 @@ const undoVideoState = (videoId) => {
   ).forEach((f) => {
     f.closest(".slider-item").classList.remove("extension-card-hide")
   })
+  resetIconActiveClasses(videoId)
 }
 
 const sendMessage = (msg) => {
@@ -412,7 +471,7 @@ const getShowToggleStatus = (videoId) => {
     matchScoreFilter &&
     videoIdRatings[videoId] < matchScoreFilter
   ) {
-    status = 1
+    status = isDesignMode ? 1 : 0
   }
 
   return status
