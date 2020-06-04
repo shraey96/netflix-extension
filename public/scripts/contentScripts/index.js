@@ -25,6 +25,8 @@ const statusMapsReverse = {
 const pendingMatchAPIRequests = {}
 const successMatchAPIRequests = {}
 
+const SHOW_CLASS = `extension-card-show`
+
 let apiURL = null
 let shaktiAPIAuthURL = null
 
@@ -91,6 +93,7 @@ const addMarkersToCard = (reInit = false) => {
       resetVolatileContainerClasses()
       elemClass = `extension-card-${statusMapsReverse[moddedVideoState]}`
       if (moddedVideoState === 1) {
+        volatileBillBoardDOM.classList.add(SHOW_CLASS)
         volatileBillBoardDOM
           .querySelector(".billboard-row")
           .classList.add(elemClass)
@@ -122,6 +125,7 @@ const addMarkersToCard = (reInit = false) => {
         resetCardClasses(x)
         elemClass = `extension-card-${statusMapsReverse[moddedVideoState]}`
         if (moddedVideoState === 1) {
+          data.closest(".slider-item").classList.add(SHOW_CLASS)
           x.querySelector(".slider-refocus").classList.add(elemClass)
         } else {
           data.closest(".slider-item").classList.add(elemClass)
@@ -159,6 +163,7 @@ const addMarkersToCard = (reInit = false) => {
       resetBigRowDOMClasses()
       elemClass = `extension-card-${statusMapsReverse[moddedVideoState]}`
       if (moddedVideoState === 1) {
+        bigRowDOM.classList.add(SHOW_CLASS)
         bigRowDOM.querySelector(".bigRow").classList.add(elemClass)
       } else {
         bigRowDOM.classList.add(elemClass)
@@ -180,6 +185,7 @@ const addMarkersToCard = (reInit = false) => {
       resetHeaderCardClasses()
       elemClass = `extension-card-${statusMapsReverse[moddedVideoState]}`
       if (moddedVideoState === 1) {
+        headerVideoDOM.classList.add(SHOW_CLASS)
         headerVideoDOM.querySelector(".background").classList.add(elemClass)
         headerVideoDOM.querySelector(".jawBone").classList.add(elemClass)
       } else {
@@ -496,6 +502,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       addMarkersToCard(true)
       console.log("@@@ RESETTING CARDS @@@")
     }
+
+    makeMatchAPIFetchRequest()
   }
   if (request.type === "toggleDesignMode") {
     settings.isDesignMode = request.isDesignMode || false

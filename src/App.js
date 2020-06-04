@@ -45,9 +45,10 @@ const App = () => {
             isDesignMode: settings.isDesignMode,
           }
           chrome.storage.local.set({ extensionSettings: updatedSettings })
+          sendMsg({ type: "toggleDesignMode", ...updatedSettings })
         }
       )
-      sendMsg({ type: "toggleDesignMode", isDesignMode: settings.isDesignMode })
+
       prevDesignMode.current = settings.isDesignMode
     }
   }, [settings.isDesignMode])
@@ -128,9 +129,14 @@ const App = () => {
         </div>
         <div className="buttons-container">
           <button onClick={() => setChanges()}>Apply</button>
-          <button disabled={undoList.length === 0} onClick={() => undoChange()}>
-            Undo
-          </button>
+          {settings.isDesignMode && (
+            <button
+              disabled={undoList.length === 0}
+              onClick={() => undoChange()}
+            >
+              Undo
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 {
   "name": "Netflix Extension",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "short_name": "Netflix Extension",
   "description": "A chrome extension to control create custom netflix Profiles",
   "browser_action": {
@@ -12,6 +12,11 @@
     "persistent": false
   },
   "content_scripts": [
+    {
+      "matches": ["*://*.netflix.com/*"],
+      "js": ["scripts/contentScripts/defaultClassSetter.js"],
+      "run_at": "document_start"
+    },
     {
       "matches": ["*://*.netflix.com/*"],
       "js": [
