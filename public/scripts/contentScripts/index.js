@@ -4,7 +4,7 @@ let videoStates = {}
 let videoIdRatings = {}
 let undoList = []
 
-const settings = {
+let settings = {
   isKidsMode: false,
   matchScoreFilter: false,
   isDesignMode: false,
@@ -30,6 +30,8 @@ const SHOW_CLASS = `extension-card-show`
 let apiURL = null
 let shaktiAPIAuthURL = null
 
+let thumbsUpObserver = null
+
 chrome.storage.local.get(
   { videoStates: {}, undoList: [], extensionSettings: {} },
   (r) => {
@@ -39,10 +41,16 @@ chrome.storage.local.get(
       videoStates = { ...videoStates, ...(r.videoStates || {}) }
       undoList = [...undoList, ...(r.undoList || [])]
 
-      settings.isKidsMode = (r.extensionSettings || {}).isKidsMode || false
-      settings.matchScoreFilter =
-        (r.extensionSettings || {}).matchScoreFilter || false
-      settings.isDesignMode = (r.extensionSettings || {}).isDesignMode || false
+      // settings.isKidsMode = (r.extensionSettings || {}).isKidsMode || false
+      // settings.matchScoreFilter =
+      //   (r.extensionSettings || {}).matchScoreFilter || false
+      // settings.isDesignMode = (r.extensionSettings || {}).isDesignMode || false
+
+      settings = { ...(r.extensionSettings || {}) }
+
+      if (!r.extensionSettings.isKidsMode) {
+        checkForThumbsContainer()
+      }
     }
 
     setFetchAPIURL()
@@ -317,9 +325,9 @@ const handleShowToggleClick = (payload) => {
     )
   })
 
-  chrome.storage.local.set({ videoStates: videoStates })
+  // chrome.storage.local.set({videoStates: videoStates  })
   undoList = [videoId, ...undoList.filter((v) => v !== videoId)]
-  chrome.storage.local.set({ undoList: undoList })
+  chrome.storage.local.set({ undoList: undoList, videoStates: videoStates })
 }
 
 const resetIconActiveClasses = (videoId) => {
@@ -426,7 +434,6 @@ const makeMatchAPIFetchRequest = () => {
               ((data.jsonGraph.videos[a].userRating || {}).value || {})
                 .matchScore || false
           })
-          getFullLogs()
         })
         .catch((err) => console.log("response err ===> ", err))
     }
@@ -449,7 +456,14 @@ const sendMessage = (msg) => {
 }
 
 const getShowToggleStatus = (videoId) => {
-  const { isKidsMode, isDesignMode, matchScoreFilter } = settings
+  const {
+    isKidsMode,
+    isDesignMode,
+    matchScoreFilter,
+    hideDisLiked,
+    hideLiked,
+    hideWithoutMatch,
+  } = settings
 
   let status = 0
 
@@ -480,6 +494,19 @@ const getShowToggleStatus = (videoId) => {
     status = isDesignMode ? 1 : 0
   }
 
+  if (videoStates[videoId] && videoStates[videoId].thumbs !== null) {
+    if (hideDisLiked && videoStates[videoId].thumbs === 0) {
+      status = isDesignMode ? 1 : 0
+    }
+    if (hideLiked && videoStates[videoId].thumbs === 1) {
+      status = isDesignMode ? 1 : 0
+    }
+  }
+
+  if (videoIdRatings[videoId] === false && hideWithoutMatch) {
+    status = isDesignMode ? 1 : 0
+  }
+
   return status
 }
 
@@ -492,9 +519,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       settings.isDesignMode !== request.isDesignMode ||
       settings.isKidsMode !== request.isKidsMode
 
-    settings.isKidsMode = request.isKidsMode || false
-    settings.matchScoreFilter = request.matchScoreFilter || false
-    settings.isDesignMode = request.isDesignMode || false
+    // settings.isKidsMode = request.isKidsMode || false
+    // settings.matchScoreFilter = request.matchScoreFilter || false
+    // settings.isDesignMode = request.isDesignMode || false
+
+    settings = { ...request }
 
     console.log("@@@@@", settings)
 
@@ -522,12 +551,62 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   sendResponse({ received: true })
 })
 
-const getFullLogs = () => {
-  console.log({
-    settings,
-    videoStates,
-    videoIdRatings,
-    pendingMatchAPIRequests,
-    successMatchAPIRequests,
+const manageThumbsClick = (videoId, isThumbsUp) => {
+  // 0 down 1 up
+  if (!videoId) return
+  const thumbsValue = isThumbsUp ? 1 : 0
+  if (
+    videoStates[videoId] &&
+    typeof videoStates[videoId].thumbs !== undefined
+  ) {
+    if (videoStates[videoId].thumbs === thumbsValue) {
+      videoStates[videoId].thumbs = null
+    } else {
+      videoStates[videoId].thumbs = thumbsValue
+    }
+  } else {
+    videoStates[videoId] = {
+      ...(videoStates[videoId] || {}),
+      thumbs: thumbsValue,
+    }
+  }
+  console.log(111, videoStates)
+  chrome.storage.local.set({ videoStates: videoStates })
+}
+
+const addClickToThumbs = () => {
+  Array.from(
+    document.querySelectorAll(
+      '[data-uia="thumbs-container"]:not([data-extension-thumb-marked])'
+    )
+  ).forEach((a) => {
+    let videoId = false
+    if (a.closest(".ptrack-content")) {
+      const context = a
+        .closest(".ptrack-content")
+        .getAttribute("data-ui-tracking-context")
+      const decodedContext = JSON.parse(decodeURIComponent(context))
+      videoId = decodedContext.video_id
+    }
+
+    Array.from(a.querySelectorAll(".thumb-container")).forEach((x) => {
+      x.addEventListener("click", (e) => {
+        const isThumbsUp = x.classList.contains("thumb-up-container")
+        manageThumbsClick(videoId, isThumbsUp)
+      })
+    })
+    a.setAttribute("data-extension-thumb-marked", videoId)
+  })
+}
+
+const checkForThumbsContainer = () => {
+  thumbsUpObserver = new MutationObserver(function (mutations) {
+    var el = document.querySelector('[data-uia="thumbs-container"]')
+    if (el) {
+      addClickToThumbs()
+    }
+  }).observe(document, {
+    subtree: true,
+    childList: true,
   })
 }

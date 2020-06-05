@@ -27,37 +27,61 @@
 }
 
 .app-wrapper {
-  height: 200px;
   width: 300px;
   padding: 20px;
-  .controls {
-    .checbox-container {
-      display: flex;
-      align-items: center;
-      margin-bottom: 4px;
-      .label {
-        margin-left: 8px;
-      }
-      .input-checkbox {
-        margin-top: 1px;
-      }
+}
+
+button {
+  padding: 8px;
+  border-radius: 4px;
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+.profiles {
+  margin-bottom: 8px;
+  .profile-action-buttons {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin: 8px 0;
+    button {
+      width: 130px;
+      margin: 8px 0;
     }
-    .match-score {
-      input {
-        border: 1px solid;
-        width: 60px;
-        padding: 4px 10px;
-        padding-right: 2px;
-      }
+  }
+  input {
+    border: 1px solid;
+    margin-top: 4px;
+    padding: 4px 2px 4px 10px;
+  }
+}
+
+.settings-separator {
+  margin: 8px 0;
+}
+
+.controls {
+  .checbox-container {
+    display: flex;
+    align-items: center;
+    margin-bottom: 4px;
+    .label {
+      margin-left: 8px;
     }
-    .buttons-container {
-      margin-top: 10px;
-      button {
-        padding: 8px;
-        border-radius: 4px;
-        margin-right: 8px;
-        cursor: pointer;
-      }
+    .input-checkbox {
+      margin-top: 1px;
     }
+  }
+  .match-score {
+    input {
+      border: 1px solid;
+      width: 60px;
+      padding: 4px 10px;
+      padding-right: 2px;
+    }
+  }
+  .buttons-container {
+    margin-top: 10px;
   }
 }

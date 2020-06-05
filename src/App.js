@@ -1,12 +1,23 @@
 /*global chrome*/
 
 import React, { useState, useEffect, useRef } from "react"
+
 import "./base.scss"
 
 const App = () => {
   const [settings, setSettings] = useState({})
   const [undoList, setUndoList] = useState([])
   const [netflixTabs, setNetflixTabs] = useState([])
+
+  const [addProfileMode, toggleAddProfileMode] = useState(false)
+  const [changePasswordMode, toggleChangePasswordMode] = useState(false)
+  const [profileRenameMode, isProfileRenameMode] = useState(false)
+
+  const [selectedProfile, toggleSelectedProfile] = useState(false)
+
+  const [profileList, setProfileList] = useState({})
+
+  const [fieldInput, setFieldInput] = useState("")
 
   const prevDesignMode = useRef(settings.isDesignMode || false)
 
@@ -23,12 +34,13 @@ const App = () => {
       attachMsgListener()
     })
     chrome.storage.local.get(
-      { extensionSettings: {}, undoList: [] },
+      { extensionSettings: {}, undoList: [], profileList: {} },
       (result) => {
         console.log("Value currently is ", result)
         if (result) {
           setSettings(result.extensionSettings)
           setUndoList(result.undoList)
+          setProfileList(result.profileList || {})
         }
       }
     )
@@ -58,9 +70,9 @@ const App = () => {
   const sendMsg = (message) => {
     netflixTabs.forEach((t) => {
       chrome.tabs.sendMessage(t.id, message, (response) => {
-        if (response) {
-          console.log(2222, response)
-        }
+        // if (response) {
+        //   console.log(2222, response)
+        // }
       })
     })
   }
@@ -72,10 +84,77 @@ const App = () => {
     }
   }
 
-  console.log(111, settings, undoList, prevDesignMode)
+  const handleFieldInputChange = (e) => {}
+
+  const handleProfileAction = (type) => {
+    const isProfileMode = type === "newProfile"
+    console.log(isProfileMode)
+    toggleAddProfileMode(isProfileMode)
+    toggleChangePasswordMode(!isProfileMode)
+  }
+
+  const handleEnter = async (keyCode) => {
+    if (keyCode === 13) {
+      // check mode and action //
+      if (addProfileMode) {
+        if (Object.keys(profileList).some((x) => x === fieldInput)) {
+          alert("profile with same name exists...")
+        } else {
+          console.log("Add Profile")
+          const profileListClone = { ...profileList }
+          profileListClone[fieldInput] = {}
+          chrome.storage.local.set({ profileList: profileListClone }, () =>
+            setProfileList(profileListClone)
+          )
+        }
+      }
+    }
+  }
+
+  console.log(111, settings)
 
   return (
     <div className="app-wrapper">
+      <div className="profiles">
+        <div className="profile-selector">
+          <label for="profileList">Choose Profile:</label>
+          <select
+            id="profileList"
+            onChange={(e) => console.log(e.target.value)}
+            // value={selectedProfile}
+          >
+            {Object.keys(profileList).map((o) => {
+              return <option value={o}>{o}</option>
+            })}
+          </select>
+        </div>
+        {(addProfileMode || changePasswordMode) && (
+          <div className="input-container">
+            <label className="label" for="fieldInput">
+              {changePasswordMode ? "New Password: " : "Profile Name: "}
+            </label>
+            <input
+              type="text"
+              value={fieldInput}
+              autoFocus
+              id="fieldInput"
+              onChange={(e) => setFieldInput(e.target.value)}
+              onKeyDown={(e) => handleEnter(e.keyCode)}
+            />
+          </div>
+        )}
+        <div className="profile-action-buttons">
+          <button onClick={() => handleProfileAction("newProfile")}>
+            Add New Profile
+          </button>
+          <button disabled={Object.keys(profileList) <= 1}>
+            Remove Profile
+          </button>
+          <button onClick={() => handleProfileAction("changePassword")}>
+            Change Password
+          </button>
+        </div>
+      </div>
       <div className="controls">
         <div className="checbox-container">
           <input
@@ -95,6 +174,9 @@ const App = () => {
             Design Mode
           </label>
         </div>
+        <p className="settings-separator">
+          <u>Settings:</u>
+        </p>
         <div className="checbox-container">
           <input
             type="checkbox"
@@ -126,6 +208,60 @@ const App = () => {
               })
             }
           />
+        </div>
+        <div className="checbox-container">
+          <input
+            type="checkbox"
+            name="unMatchScore"
+            id="unMatchScore"
+            className="input-checkbox"
+            checked={settings.hideWithoutMatch}
+            onChange={() =>
+              setSettings((prevSettings) => ({
+                ...settings,
+                hideWithoutMatch: !prevSettings.hideWithoutMatch,
+              }))
+            }
+          />
+          <label className="label" for="unMatchScore">
+            Hide shows without match score
+          </label>
+        </div>
+        <div className="checbox-container">
+          <input
+            type="checkbox"
+            name="hideDisLiked"
+            id="hideDisLiked"
+            className="input-checkbox"
+            checked={settings.hideDisLiked}
+            onChange={() =>
+              setSettings((prevSettings) => ({
+                ...settings,
+                hideDisLiked: !prevSettings.hideDisLiked,
+              }))
+            }
+          />
+          <label className="label" for="hideDisLiked">
+            Hide Disliked Shows
+          </label>
+        </div>
+        <div className="checbox-container">
+          <input
+            type="checkbox"
+            name="hideLiked"
+            id="hideLiked"
+            className="input-checkbox"
+            checked={settings.hideLiked}
+            onChange={() =>
+              setSettings((prevSettings) => ({
+                ...settings,
+                hideLiked: !prevSettings.hideLiked,
+              }))
+            }
+          />
+          <label className="label" for="hideLiked">
+            Hide Liked Shows
+          </label>
         </div>
         <div className="buttons-container">
           <button onClick={() => setChanges()}>Apply</button>
