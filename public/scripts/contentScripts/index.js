@@ -32,23 +32,53 @@ let shaktiAPIAuthURL = null
 
 let thumbsUpObserver = null
 
+let allProfileVideoStates = {}
+let allProfileSelectionUndos = []
+
+let thumbsTimeout = null
+
 chrome.storage.local.get(
-  { videoStates: {}, undoList: [], extensionSettings: {} },
+  {
+    lastUsedProfile: false,
+    profileList: {},
+    profileVideoStates: {},
+    profileSelectionUndos: {},
+  },
   (r) => {
     console.log("Value currently is ", r)
 
     if (r) {
-      videoStates = { ...videoStates, ...(r.videoStates || {}) }
-      undoList = [...undoList, ...(r.undoList || [])]
+      const {
+        lastUsedProfile,
+        profileList,
+        profileVideoStates,
+        profileSelectionUndos,
+      } = r
 
-      // settings.isKidsMode = (r.extensionSettings || {}).isKidsMode || false
-      // settings.matchScoreFilter =
-      //   (r.extensionSettings || {}).matchScoreFilter || false
-      // settings.isDesignMode = (r.extensionSettings || {}).isDesignMode || false
+      if (lastUsedProfile && profileList[lastUsedProfile]) {
+        settings = { ...(profileList[lastUsedProfile] || {}) }
+      } else {
+        if (Object.keys(profileList).length > 0) {
+          const defaultProfile = Object.keys(profileList)[0]
+          settings = { ...profileList[defaultProfile] }
+        }
+      }
 
-      settings = { ...(r.extensionSettings || {}) }
+      allProfileVideoStates = profileVideoStates || {}
+      allProfileSelectionUndos = profileSelectionUndos || {}
 
-      if (!r.extensionSettings.isKidsMode) {
+      if (settings.profileId) {
+        console.log(
+          "@@@@ profile ===>",
+          settings,
+          profileVideoStates,
+          profileSelectionUndos
+        )
+        videoStates = { ...(profileVideoStates[settings.profileId] || {}) }
+        undoList = [...(profileSelectionUndos[settings.profileId] || [])]
+      }
+
+      if (!settings.isKidsMode) {
         checkForThumbsContainer()
       }
     }
@@ -325,20 +355,37 @@ const handleShowToggleClick = (payload) => {
     )
   })
 
-  // chrome.storage.local.set({videoStates: videoStates  })
-  undoList = [videoId, ...undoList.filter((v) => v !== videoId)]
-  chrome.storage.local.set({ undoList: undoList, videoStates: videoStates })
+  try {
+    undoList = [videoId, ...(undoList || [].filter((v) => v !== videoId))]
+    allProfileVideoStates[settings.profileId] = videoStates
+    allProfileSelectionUndos[settings.profileId] = undoList
+    chrome.storage.local.set({
+      profileVideoStates: allProfileVideoStates,
+      profileSelectionUndos: allProfileSelectionUndos,
+    })
+  } catch (error) {
+    console.log(444, error)
+  }
 }
 
 const resetIconActiveClasses = (videoId) => {
-  Array.from(
-    document.querySelectorAll(
-      `.extension-video-toggle-container[data-video-id="${videoId}"]`
-    )
-  ).forEach((a) => {
+  const DOMQuery = videoId
+    ? `.extension-video-toggle-container[data-video-id="${videoId}"]`
+    : `.extension-video-toggle-container`
+  Array.from(document.querySelectorAll(DOMQuery)).forEach((a) => {
+    const domVideoId = a.getAttribute("data-video-id")
     Array.from(a.querySelectorAll(".extension-video-toggle-action")).forEach(
       (e) => {
         e.classList.remove("active")
+        if (!videoId) {
+          if (
+            videoStates[domVideoId] &&
+            videoStates[domVideoId].action ===
+              e.getAttribute("data-action-type")
+          ) {
+            e.classList.add("active")
+          }
+        }
       }
     )
   })
@@ -365,12 +412,14 @@ const resetHeaderCardClasses = () => {
 }
 
 const resetBigRowDOMClasses = () => {
-  const bigRowDOM = document.querySelector('[data-list-context="bigRow"]')
-  bigRowDOM.classList.remove("extension-card-show")
-  bigRowDOM.classList.remove("extension-card-hide")
-  document
-    .querySelector('[data-list-context="bigRow"] .bigRow')
-    .classList.remove("extension-card-dim")
+  try {
+    const bigRowDOM = document.querySelector('[data-list-context="bigRow"]')
+    bigRowDOM.classList.remove("extension-card-show")
+    bigRowDOM.classList.remove("extension-card-hide")
+    document
+      .querySelector('[data-list-context="bigRow"] .bigRow')
+      .classList.remove("extension-card-dim")
+  } catch (error) {}
 }
 
 const resetVolatileContainerClasses = () => {
@@ -471,20 +520,25 @@ const getShowToggleStatus = (videoId) => {
     if (!videoStates[videoId]) {
       isKidsMode ? (status = 1) : (status = 2)
     } else {
-      if (videoStates[videoId].action === "show") {
-        status = 2
-      } else {
-        status = 1
+      if (videoStates[videoId] && videoStates[videoId].action) {
+        if (videoStates[videoId].action === "show") {
+          status = 2
+        } else {
+          status = 1
+        }
       }
     }
   } else {
     if (!videoStates[videoId]) {
       isKidsMode ? (status = 0) : (status = 2)
     } else {
-      status = statusMaps[videoStates[videoId].action] || 0
+      if (videoStates[videoId].action) {
+        status = statusMaps[videoStates[videoId].action] || 0
+      }
     }
   }
 
+  // match score filter //
   if (
     !isKidsMode &&
     videoIdRatings[videoId] &&
@@ -494,13 +548,27 @@ const getShowToggleStatus = (videoId) => {
     status = isDesignMode ? 1 : 0
   }
 
-  if (videoStates[videoId] && videoStates[videoId].thumbs !== null) {
+  if (
+    videoStates[videoId] &&
+    typeof videoStates[videoId].thumbs !== undefined &&
+    videoStates[videoId].thumbs !== null
+  ) {
+    status = isDesignMode || !isKidsMode ? 2 : 0
+
     if (hideDisLiked && videoStates[videoId].thumbs === 0) {
       status = isDesignMode ? 1 : 0
     }
     if (hideLiked && videoStates[videoId].thumbs === 1) {
       status = isDesignMode ? 1 : 0
     }
+  }
+
+  if (
+    videoStates[videoId] &&
+    !videoStates[videoId].action &&
+    videoStates[videoId].thumbs === null
+  ) {
+    status = 2
   }
 
   if (videoIdRatings[videoId] === false && hideWithoutMatch) {
@@ -510,68 +578,36 @@ const getShowToggleStatus = (videoId) => {
   return status
 }
 
-// msg listener chrome //
-
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log("GOT MESSAGE ===> ", request)
-  if (request.type === "settingsUpdate") {
-    let shouldUpdate =
-      settings.isDesignMode !== request.isDesignMode ||
-      settings.isKidsMode !== request.isKidsMode
-
-    // settings.isKidsMode = request.isKidsMode || false
-    // settings.matchScoreFilter = request.matchScoreFilter || false
-    // settings.isDesignMode = request.isDesignMode || false
-
-    settings = { ...request }
-
-    console.log("@@@@@", settings)
-
-    if (shouldUpdate) {
-      addMarkersToCard(true)
-      console.log("@@@ RESETTING CARDS @@@")
-    }
-
-    makeMatchAPIFetchRequest()
-  }
-  if (request.type === "toggleDesignMode") {
-    settings.isDesignMode = request.isDesignMode || false
-    addMarkersToCard(true)
-  }
-
-  if (request.type === "itemUndo") {
-    delete videoStates[request.videoId]
-    undoVideoState(request.videoId)
-    chrome.storage.local.set({ videoStates: videoStates })
-    undoList = undoList.filter((f) => f !== request.videoId)
-    chrome.storage.local.set({
-      undoList: undoList,
-    })
-  }
-  sendResponse({ received: true })
-})
-
-const manageThumbsClick = (videoId, isThumbsUp) => {
+const manageThumbsClick = ({ videoId, isThumbsUp, unRated, isThumbsDown }) => {
   // 0 down 1 up
   if (!videoId) return
-  const thumbsValue = isThumbsUp ? 1 : 0
-  if (
-    videoStates[videoId] &&
-    typeof videoStates[videoId].thumbs !== undefined
-  ) {
-    if (videoStates[videoId].thumbs === thumbsValue) {
-      videoStates[videoId].thumbs = null
-    } else {
-      videoStates[videoId].thumbs = thumbsValue
-    }
-  } else {
-    videoStates[videoId] = {
-      ...(videoStates[videoId] || {}),
-      thumbs: thumbsValue,
-    }
+  if (settings.isKidsMode) return
+  const thumbsValue = unRated ? null : isThumbsUp ? 1 : isThumbsDown ? 0 : null
+  videoStates[videoId] = {
+    ...(videoStates[videoId] || {}),
+    thumbs: thumbsValue,
   }
-  console.log(111, videoStates)
-  chrome.storage.local.set({ videoStates: videoStates })
+
+  try {
+    resetHeaderCardClasses()
+    resetBigRowDOMClasses()
+    resetVolatileContainerClasses()
+
+    Array.from(
+      document.querySelector(`[data-extension-marked="${videoId}"]`)
+    ).forEach((x) =>
+      resetCardClasses(x.querySelector(".ptrack-content .slider-refocus"))
+    )
+  } catch (error) {}
+
+  try {
+    allProfileVideoStates[settings.profileId] = videoStates
+    chrome.storage.local.set({
+      profileVideoStates: allProfileVideoStates,
+    })
+  } catch (error) {
+    console.log(444, error)
+  }
 }
 
 const addClickToThumbs = () => {
@@ -591,8 +627,14 @@ const addClickToThumbs = () => {
 
     Array.from(a.querySelectorAll(".thumb-container")).forEach((x) => {
       x.addEventListener("click", (e) => {
-        const isThumbsUp = x.classList.contains("thumb-up-container")
-        manageThumbsClick(videoId, isThumbsUp)
+        clearTimeout(thumbsTimeout)
+        thumbsTimeout = setTimeout(() => {
+          const unRated = a.classList.contains("unrated") || false
+          const isThumbsUp = a.classList.contains("rated-up") || false
+          const isThumbsDown = a.classList.contains("rated-down") || false
+
+          manageThumbsClick({ videoId, isThumbsUp, unRated, isThumbsDown })
+        }, 100)
       })
     })
     a.setAttribute("data-extension-thumb-marked", videoId)
@@ -600,8 +642,8 @@ const addClickToThumbs = () => {
 }
 
 const checkForThumbsContainer = () => {
-  thumbsUpObserver = new MutationObserver(function (mutations) {
-    var el = document.querySelector('[data-uia="thumbs-container"]')
+  thumbsUpObserver = new MutationObserver(() => {
+    const el = document.querySelector('[data-uia="thumbs-container"]')
     if (el) {
       addClickToThumbs()
     }
@@ -610,3 +652,61 @@ const checkForThumbsContainer = () => {
     childList: true,
   })
 }
+
+// msg listener chrome //
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log("GOT MESSAGE ===> ", request)
+  if (request.type === "settingsUpdate") {
+    const shouldUpdate =
+      settings.isDesignMode !== request.isDesignMode ||
+      settings.isKidsMode !== request.isKidsMode ||
+      settings.profileId !== request.profileId
+
+    if (settings.profileId !== request.profileId) {
+      videoStates = allProfileVideoStates[request.profileId] || {}
+      undoList = allProfileSelectionUndos[request.profileId] || []
+    }
+
+    settings = { ...request }
+
+    if (shouldUpdate) {
+      addMarkersToCard(true)
+      console.log("@@@ RESETTING CARDS @@@")
+      resetIconActiveClasses()
+    }
+
+    makeMatchAPIFetchRequest()
+  }
+  if (request.type === "toggleDesignMode") {
+    if (settings.profileId !== request.profileId) {
+      videoStates = allProfileVideoStates[request.profileId] || {}
+      undoList = allProfileSelectionUndos[request.profileId] || []
+      resetIconActiveClasses()
+    }
+    settings = { ...request }
+    addMarkersToCard(true)
+  }
+
+  if (request.type === "itemUndo") {
+    delete videoStates[request.videoId]
+    undoVideoState(request.videoId)
+
+    undoList = undoList.filter((f) => f !== request.videoId)
+
+    try {
+      undoList = undoList || [].filter((v) => v !== request.videoId)
+      allProfileVideoStates[settings.profileId] = videoStates
+      allProfileSelectionUndos[settings.profileId] = undoList
+      chrome.storage.local.set({
+        profileVideoStates: allProfileVideoStates,
+        profileSelectionUndos: allProfileSelectionUndos,
+      })
+    } catch (error) {
+      console.log(444, error)
+    }
+  }
+
+  console.log("##### ", settings, videoStates, undoList)
+  sendResponse({ received: true })
+})

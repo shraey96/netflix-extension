@@ -28,9 +28,10 @@ function handleDefaultCardClassToggle(payload) {
   }
 }
 
-chrome.storage.local.get({ extensionSettings: {} }, (r) => {
-  if (r.extensionSettings) {
-    handleDefaultCardClassToggle(r.extensionSettings)
+chrome.storage.local.get({ profileList: {}, lastUsedProfile: false }, (r) => {
+  const { profileList, lastUsedProfile } = r
+  if (lastUsedProfile && profileList[lastUsedProfile]) {
+    handleDefaultCardClassToggle(profileList[lastUsedProfile])
   }
 })
 

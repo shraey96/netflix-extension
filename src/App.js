@@ -4,9 +4,16 @@ import React, { useState, useEffect, useRef } from "react"
 
 import "./base.scss"
 
+const DEFAUL_PROFILE = {
+  profileName: "Default",
+  profileId: "Default",
+}
+
+// o: {name: '', ...settings}
+
 const App = () => {
   const [settings, setSettings] = useState({})
-  const [undoList, setUndoList] = useState([])
+  const [undoList, setUndoList] = useState({})
   const [netflixTabs, setNetflixTabs] = useState([])
 
   const [addProfileMode, toggleAddProfileMode] = useState(false)
@@ -15,57 +22,90 @@ const App = () => {
 
   const [selectedProfile, toggleSelectedProfile] = useState(false)
 
-  const [profileList, setProfileList] = useState({})
+  const [profileList, updateProfileList] = useState({})
 
   const [fieldInput, setFieldInput] = useState("")
 
   const prevDesignMode = useRef(settings.isDesignMode || false)
 
   const setChanges = () => {
-    chrome.storage.local.set({ extensionSettings: settings }, (value) => {
-      sendMsg({ type: "settingsUpdate", ...settings })
-    })
+    chrome.storage.local.set(
+      {
+        profileList: profileList,
+        lastUsedProfile: selectedProfile,
+      },
+      () => {
+        sendMsg({
+          type: "settingsUpdate",
+          ...(profileList[selectedProfile] || {}),
+        })
+      }
+    )
   }
 
   useEffect(() => {
     chrome.tabs.query({}, (tabs) => {
       const reqTabs = tabs.filter((t) => t.url.includes("netflix.com/"))
       setNetflixTabs(reqTabs)
-      attachMsgListener()
     })
     chrome.storage.local.get(
-      { extensionSettings: {}, undoList: [], profileList: {} },
+      {
+        extensionSettings: {},
+        undoList: [],
+        profileList: {},
+        lastUsedProfile: false,
+        profileSelectionUndos: {},
+      },
       (result) => {
         console.log("Value currently is ", result)
         if (result) {
-          setSettings(result.extensionSettings)
-          setUndoList(result.undoList)
-          setProfileList(result.profileList || {})
+          const allProfiles = {
+            [DEFAUL_PROFILE.profileId]: DEFAUL_PROFILE,
+            ...(result.profileList || {}),
+          }
+
+          updateProfileList(allProfiles)
+          if (result.lastUsedProfile) {
+            toggleSelectedProfile(result.lastUsedProfile)
+          } else {
+            const defaultProfile = Object.keys(allProfiles)[0]
+            toggleSelectedProfile(defaultProfile)
+          }
+          setUndoList(result.profileSelectionUndos)
         }
       }
     )
   }, [])
 
   useEffect(() => {
-    if (prevDesignMode.current !== settings.isDesignMode) {
-      chrome.storage.local.get(
-        { extensionSettings: {}, undoList: [] },
-        (result) => {
-          console.log("Value currently is ", result)
-          const updatedSettings = {
-            ...(result.extensionSettings || {}),
-            isDesignMode: settings.isDesignMode,
-          }
-          chrome.storage.local.set({ extensionSettings: updatedSettings })
-          sendMsg({ type: "toggleDesignMode", ...updatedSettings })
+    if (
+      selectedProfile &&
+      typeof (profileList[selectedProfile] || {}).isDesignMode !== undefined
+    ) {
+      chrome.storage.local.get({ profileList: {} }, (result) => {
+        console.log("Value currently is ", result)
+        const updatedSettings = {
+          ...(result.extensionSettings || {}),
+          isDesignMode: settings.isDesignMode,
         }
-      )
+        const updatedProfiles = {
+          ...profileList,
+          [selectedProfile]: { ...profileList[selectedProfile] },
+        }
 
-      prevDesignMode.current = settings.isDesignMode
+        chrome.storage.local.set({
+          profileList: updatedProfiles,
+          lastUsedProfile: selectedProfile,
+        })
+        sendMsg({
+          type: "toggleDesignMode",
+          ...updatedProfiles[selectedProfile],
+        })
+      })
+      // optimize later
+      // prevDesignMode.current = settings.isDesignMode
     }
-  }, [settings.isDesignMode])
-
-  const attachMsgListener = () => {}
+  }, [profileList, selectedProfile])
 
   const sendMsg = (message) => {
     netflixTabs.forEach((t) => {
@@ -78,40 +118,96 @@ const App = () => {
   }
 
   const undoChange = () => {
-    if (undoList.length > 0) {
-      sendMsg({ type: "itemUndo", videoId: undoList[0] })
-      setUndoList((prevList) => [...prevList].slice(1))
+    const profileUndos = undoList[selectedProfile]
+    console.log(profileUndos)
+    if (profileUndos.length > 0) {
+      sendMsg({ type: "itemUndo", videoId: profileUndos[0] })
+      setUndoList((prevList) => ({
+        ...prevList,
+        [selectedProfile]: prevList[selectedProfile].slice(1),
+      }))
     }
   }
 
-  const handleFieldInputChange = (e) => {}
-
   const handleProfileAction = (type) => {
     const isProfileMode = type === "newProfile"
-    console.log(isProfileMode)
     toggleAddProfileMode(isProfileMode)
     toggleChangePasswordMode(!isProfileMode)
   }
 
   const handleEnter = async (keyCode) => {
     if (keyCode === 13) {
-      // check mode and action //
       if (addProfileMode) {
-        if (Object.keys(profileList).some((x) => x === fieldInput)) {
+        if (
+          Object.values(profileList).some((x) => x.profileName === fieldInput)
+        ) {
           alert("profile with same name exists...")
         } else {
-          console.log("Add Profile")
           const profileListClone = { ...profileList }
-          profileListClone[fieldInput] = {}
-          chrome.storage.local.set({ profileList: profileListClone }, () =>
-            setProfileList(profileListClone)
-          )
+          const clearedFieldInput = fieldInput.replace(" ", "_")
+          profileListClone[clearedFieldInput] = {
+            profileName: fieldInput,
+            profileId: clearedFieldInput,
+          }
+          chrome.storage.local.set({ profileList: profileListClone }, () => {
+            updateProfileList(profileListClone)
+            toggleSelectedProfile(clearedFieldInput)
+            toggleAddProfileMode(false)
+            alert("profile added...")
+          })
         }
       }
     }
   }
 
-  console.log(111, settings)
+  const handleProfileSelect = (profile) => {
+    toggleSelectedProfile(profile)
+  }
+
+  const handleProfileSettingUpdate = ({ isInput = false, setting, value }) => {
+    // check if profile requires password //
+
+    if (isInput) {
+      updateProfileList((prevProfiles) => ({
+        ...prevProfiles,
+        [selectedProfile]: {
+          ...prevProfiles[selectedProfile],
+          [setting]: value,
+        },
+      }))
+    } else {
+      updateProfileList((prevProfiles) => ({
+        ...prevProfiles,
+        [selectedProfile]: {
+          ...prevProfiles[selectedProfile],
+          [setting]: !(prevProfiles[selectedProfile] || {})[setting],
+        },
+      }))
+    }
+  }
+
+  const handleProfileRemove = () => {
+    if (Object.keys(profileList).length <= 1) {
+      alert(`cannot remove last profile`)
+    } else {
+      updateProfileList((prevList) => {
+        const pClone = { ...prevList }
+        delete pClone[selectedProfile]
+        return pClone
+      })
+      const defaultProfile = Object.keys(profileList)[0]
+      toggleSelectedProfile(defaultProfile)
+      setChanges()
+    }
+  }
+
+  console.log(
+    234,
+    settings,
+    profileList,
+    selectedProfile,
+    profileList[selectedProfile]
+  )
 
   return (
     <div className="app-wrapper">
@@ -120,11 +216,14 @@ const App = () => {
           <label for="profileList">Choose Profile:</label>
           <select
             id="profileList"
-            onChange={(e) => console.log(e.target.value)}
-            // value={selectedProfile}
+            onChange={(e) => handleProfileSelect(e.target.value)}
+            value={selectedProfile}
           >
+            <option disabled selected value>
+              -- select an option --
+            </option>
             {Object.keys(profileList).map((o) => {
-              return <option value={o}>{o}</option>
+              return <option value={o}>{o.profileName || o}</option>
             })}
           </select>
         </div>
@@ -147,7 +246,10 @@ const App = () => {
           <button onClick={() => handleProfileAction("newProfile")}>
             Add New Profile
           </button>
-          <button disabled={Object.keys(profileList) <= 1}>
+          <button
+            disabled={Object.keys(profileList) <= 1}
+            onClick={() => handleProfileRemove()}
+          >
             Remove Profile
           </button>
           <button onClick={() => handleProfileAction("changePassword")}>
@@ -162,12 +264,11 @@ const App = () => {
             name="designMode"
             id="designMode"
             className="input-checkbox"
-            checked={settings.isDesignMode}
+            // disabled={!selectedProfile}
+
+            checked={(profileList[selectedProfile] || {}).isDesignMode}
             onChange={() =>
-              setSettings((prevSettings) => ({
-                ...settings,
-                isDesignMode: !prevSettings.isDesignMode,
-              }))
+              handleProfileSettingUpdate({ setting: "isDesignMode" })
             }
           />
           <label className="label" for="designMode">
@@ -183,12 +284,9 @@ const App = () => {
             name="kidsMode"
             id="kidsMode"
             className="input-checkbox"
-            checked={settings.isKidsMode}
+            checked={(profileList[selectedProfile] || {}).isKidsMode}
             onChange={() =>
-              setSettings((prevSettings) => ({
-                ...settings,
-                isKidsMode: !prevSettings.isKidsMode,
-              }))
+              handleProfileSettingUpdate({ setting: "isKidsMode" })
             }
           />
           <label className="label" for="kidsMode">
@@ -200,13 +298,17 @@ const App = () => {
           <input
             type="number"
             name="matchScore"
-            value={settings.matchScoreFilter}
-            onChange={(e) =>
-              setSettings({
-                ...settings,
-                matchScoreFilter: parseInt(e.target.value, 10),
-              })
+            value={
+              (profileList[selectedProfile] || {}).matchScoreFilter || false
             }
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10)
+              handleProfileSettingUpdate({
+                setting: "matchScoreFilter",
+                value: val,
+                isInput: true,
+              })
+            }}
           />
         </div>
         <div className="checbox-container">
@@ -215,12 +317,9 @@ const App = () => {
             name="unMatchScore"
             id="unMatchScore"
             className="input-checkbox"
-            checked={settings.hideWithoutMatch}
+            checked={(profileList[selectedProfile] || {}).hideWithoutMatch}
             onChange={() =>
-              setSettings((prevSettings) => ({
-                ...settings,
-                hideWithoutMatch: !prevSettings.hideWithoutMatch,
-              }))
+              handleProfileSettingUpdate({ setting: "hideWithoutMatch" })
             }
           />
           <label className="label" for="unMatchScore">
@@ -233,12 +332,9 @@ const App = () => {
             name="hideDisLiked"
             id="hideDisLiked"
             className="input-checkbox"
-            checked={settings.hideDisLiked}
+            checked={(profileList[selectedProfile] || {}).hideDisLiked}
             onChange={() =>
-              setSettings((prevSettings) => ({
-                ...settings,
-                hideDisLiked: !prevSettings.hideDisLiked,
-              }))
+              handleProfileSettingUpdate({ setting: "hideDisLiked" })
             }
           />
           <label className="label" for="hideDisLiked">
@@ -251,12 +347,9 @@ const App = () => {
             name="hideLiked"
             id="hideLiked"
             className="input-checkbox"
-            checked={settings.hideLiked}
+            checked={(profileList[selectedProfile] || {}).hideLiked}
             onChange={() =>
-              setSettings((prevSettings) => ({
-                ...settings,
-                hideLiked: !prevSettings.hideLiked,
-              }))
+              handleProfileSettingUpdate({ setting: "hideLiked" })
             }
           />
           <label className="label" for="hideLiked">
@@ -265,9 +358,9 @@ const App = () => {
         </div>
         <div className="buttons-container">
           <button onClick={() => setChanges()}>Apply</button>
-          {settings.isDesignMode && (
+          {(profileList[selectedProfile] || {}).isDesignMode && (
             <button
-              disabled={undoList.length === 0}
+              disabled={(undoList[selectedProfile] || []).length === 0}
               onClick={() => undoChange()}
             >
               Undo
