@@ -578,7 +578,13 @@ const getShowToggleStatus = (videoId) => {
   return status
 }
 
-const manageThumbsClick = ({ videoId, isThumbsUp, unRated, isThumbsDown }) => {
+const manageThumbsClick = ({
+  videoId,
+  isThumbsUp,
+  unRated,
+  isThumbsDown,
+  videoName,
+}) => {
   // 0 down 1 up
   if (!videoId) return
   if (settings.isKidsMode) return
@@ -586,6 +592,13 @@ const manageThumbsClick = ({ videoId, isThumbsUp, unRated, isThumbsDown }) => {
   videoStates[videoId] = {
     ...(videoStates[videoId] || {}),
     thumbs: thumbsValue,
+  }
+
+  if (videoName) {
+    videoStates[videoId] = {
+      ...(videoStates[videoId] || {}),
+      videoName,
+    }
   }
 
   try {
@@ -617,12 +630,21 @@ const addClickToThumbs = () => {
     )
   ).forEach((a) => {
     let videoId = false
-    if (a.closest(".ptrack-content")) {
-      const context = a
-        .closest(".ptrack-content")
-        .getAttribute("data-ui-tracking-context")
-      const decodedContext = JSON.parse(decodeURIComponent(context))
-      videoId = decodedContext.video_id
+    let videoName = false
+
+    if (a.closest(".jawBone")) {
+      const linkDom = a.closest(".jawBone").querySelector(".jawbone-title-link")
+
+      if (linkDom) {
+        videoId = linkDom.getAttribute("href").replace("/title/", "")
+        videoName = linkDom.querySelector("img").getAttribute("alt")
+      }
+    }
+
+    if (a.closest(".bob-overlay")) {
+      const linkDom = a.closest(".bob-overlay").querySelector("a")
+      videoName = linkDom.getAttribute("aria-label") || false
+      videoId = linkDom.getAttribute("href").replace("/title/", "")
     }
 
     Array.from(a.querySelectorAll(".thumb-container")).forEach((x) => {
@@ -633,11 +655,19 @@ const addClickToThumbs = () => {
           const isThumbsUp = a.classList.contains("rated-up") || false
           const isThumbsDown = a.classList.contains("rated-down") || false
 
-          manageThumbsClick({ videoId, isThumbsUp, unRated, isThumbsDown })
+          manageThumbsClick({
+            videoId,
+            isThumbsUp,
+            unRated,
+            isThumbsDown,
+            videoName,
+          })
         }, 100)
       })
     })
-    a.setAttribute("data-extension-thumb-marked", videoId)
+    if (videoId) {
+      a.setAttribute("data-extension-thumb-marked", videoId)
+    }
   })
 }
 
