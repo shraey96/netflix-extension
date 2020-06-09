@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect, useRef } from "react"
 
+import { TOOLTIP_TEXTS } from "./constants"
+
 import "./base.scss"
 
 const DEFAUL_PROFILE = {
   profileName: "Default",
   profileId: "Default",
 }
-
-// o: {name: '', ...settings}
 
 const App = () => {
   const [settings, setSettings] = useState({})
@@ -18,13 +18,13 @@ const App = () => {
 
   const [addProfileMode, toggleAddProfileMode] = useState(false)
   const [changePasswordMode, toggleChangePasswordMode] = useState(false)
-  const [profileRenameMode, isProfileRenameMode] = useState(false)
 
   const [selectedProfile, toggleSelectedProfile] = useState(false)
 
   const [profileList, updateProfileList] = useState({})
 
   const [fieldInput, setFieldInput] = useState("")
+  const [newPasswordInput, setNewPasswordInput] = useState(false)
 
   const prevDesignMode = useRef(settings.isDesignMode || false)
 
@@ -84,13 +84,13 @@ const App = () => {
     ) {
       chrome.storage.local.get({ profileList: {} }, (result) => {
         console.log("Value currently is ", result)
-        const updatedSettings = {
-          ...(result.extensionSettings || {}),
-          isDesignMode: settings.isDesignMode,
-        }
+
         const updatedProfiles = {
           ...profileList,
-          [selectedProfile]: { ...profileList[selectedProfile] },
+          [selectedProfile]: {
+            ...result.profileList[selectedProfile],
+            isDesignMode: profileList[selectedProfile].isDesignMode,
+          },
         }
 
         chrome.storage.local.set({
@@ -130,14 +130,18 @@ const App = () => {
   }
 
   const handleProfileAction = (type) => {
-    const isProfileMode = type === "newProfile"
+    const isProfileMode =
+      type === "newProfile" || type === "renameProfile" ? type : false
+    const isPasswordMode =
+      type === "changePassword" || type === "newPassword" ? type : false
+
     toggleAddProfileMode(isProfileMode)
-    toggleChangePasswordMode(!isProfileMode)
+    toggleChangePasswordMode(isPasswordMode)
   }
 
   const handleEnter = async (keyCode) => {
     if (keyCode === 13) {
-      if (addProfileMode) {
+      if (addProfileMode === "newProfile") {
         if (
           Object.values(profileList).some((x) => x.profileName === fieldInput)
         ) {
@@ -152,12 +156,57 @@ const App = () => {
           chrome.storage.local.set({ profileList: profileListClone }, () => {
             updateProfileList(profileListClone)
             toggleSelectedProfile(clearedFieldInput)
-            toggleAddProfileMode(false)
+            resetInputStates()
             alert("profile added...")
           })
         }
       }
+      if (addProfileMode === "renameProfile") {
+        if (
+          Object.values(profileList).some((x) => x.profileName === fieldInput)
+        ) {
+          alert("profile with same name exists...")
+        } else {
+          const profileListClone = { ...profileList }
+          profileListClone[selectedProfile].profileName = fieldInput
+          chrome.storage.local.set({ profileList: profileListClone }, () => {
+            updateProfileList(profileListClone)
+            resetInputStates()
+            alert("profile name updated...")
+          })
+        }
+      }
+      if (changePasswordMode === "changePassword") {
+        const profileListClone = { ...profileList }
+        profileListClone[selectedProfile].password = fieldInput
+        chrome.storage.local.set({ profileList: profileListClone }, () => {
+          updateProfileList(profileListClone)
+          resetInputStates()
+          alert("password changed...")
+        })
+      }
+      if (changePasswordMode === "newPassword") {
+        console.log("121212", fieldInput, newPasswordInput)
+        if (fieldInput !== newPasswordInput) {
+          alert("passwords do not match ...")
+        } else {
+          const profileListClone = { ...profileList }
+          profileListClone[selectedProfile].password = newPasswordInput
+          chrome.storage.local.set({ profileList: profileListClone }, () => {
+            updateProfileList(profileListClone)
+            resetInputStates()
+            alert("password changed...")
+          })
+        }
+      }
     }
+  }
+
+  const resetInputStates = () => {
+    toggleAddProfileMode(false)
+    toggleChangePasswordMode(false)
+    setFieldInput("")
+    setNewPasswordInput("")
   }
 
   const handleProfileSelect = (profile) => {
@@ -206,8 +255,11 @@ const App = () => {
     settings,
     profileList,
     selectedProfile,
-    profileList[selectedProfile]
+    profileList[selectedProfile],
+    undoList[selectedProfile]
   )
+
+  console.log(66666, changePasswordMode, addProfileMode)
 
   return (
     <div className="app-wrapper">
@@ -223,9 +275,25 @@ const App = () => {
               -- select an option --
             </option>
             {Object.keys(profileList).map((o) => {
-              return <option value={o}>{o.profileName || o}</option>
+              return (
+                <option value={o}>{profileList[o].profileName || o}</option>
+              )
             })}
           </select>
+          <div className="profile-selector__actions">
+            <button onClick={() => handleProfileAction("newProfile")}>
+              Add Profile
+            </button>
+            <button onClick={() => handleProfileAction("renameProfile")}>
+              Rename Profile
+            </button>
+            <button
+              disabled={Object.keys(profileList) <= 1}
+              onClick={() => handleProfileRemove()}
+            >
+              Remove Profile
+            </button>
+          </div>
         </div>
         {(addProfileMode || changePasswordMode) && (
           <div className="input-container">
@@ -233,39 +301,63 @@ const App = () => {
               {changePasswordMode ? "New Password: " : "Profile Name: "}
             </label>
             <input
-              type="text"
+              type={
+                addProfileMode
+                  ? "text"
+                  : changePasswordMode
+                  ? "passowrd"
+                  : "passowrd"
+              }
               value={fieldInput}
               autoFocus
+              placeholder={
+                addProfileMode
+                  ? addProfileMode === "renameProfile"
+                    ? profileList[selectedProfile].profileName ||
+                      selectedProfile
+                    : "Profile Name"
+                  : changePasswordMode
+                  ? changePasswordMode === "changePassword"
+                    ? "Change Password"
+                    : "New Password"
+                  : ""
+              }
               id="fieldInput"
               onChange={(e) => setFieldInput(e.target.value)}
               onKeyDown={(e) => handleEnter(e.keyCode)}
             />
+            {changePasswordMode === "newPassword" && (
+              <input
+                type="passowrd"
+                value={newPasswordInput || ""}
+                placeholder="confirm password"
+                id="fieldInput"
+                onChange={(e) => setNewPasswordInput(e.target.value)}
+                onKeyDown={(e) => handleEnter(e.keyCode)}
+              />
+            )}
           </div>
         )}
         <div className="profile-action-buttons">
-          <button onClick={() => handleProfileAction("newProfile")}>
-            Add New Profile
-          </button>
-          <button
-            disabled={Object.keys(profileList) <= 1}
-            onClick={() => handleProfileRemove()}
-          >
-            Remove Profile
-          </button>
           <button onClick={() => handleProfileAction("changePassword")}>
             Change Password
+          </button>
+          <button onClick={() => handleProfileAction("newPassword")}>
+            New Password
           </button>
         </div>
       </div>
       <div className="controls">
-        <div className="checbox-container">
+        <div
+          className="checbox-container design-mode"
+          title={TOOLTIP_TEXTS.DESIGN_MODE}
+        >
           <input
             type="checkbox"
             name="designMode"
             id="designMode"
             className="input-checkbox"
-            // disabled={!selectedProfile}
-
+            disabled={!selectedProfile}
             checked={(profileList[selectedProfile] || {}).isDesignMode}
             onChange={() =>
               handleProfileSettingUpdate({ setting: "isDesignMode" })
@@ -278,7 +370,7 @@ const App = () => {
         <p className="settings-separator">
           <u>Settings:</u>
         </p>
-        <div className="checbox-container">
+        <div className="checbox-container" title={TOOLTIP_TEXTS.KIDS_MODE}>
           <input
             type="checkbox"
             name="kidsMode"
@@ -293,7 +385,7 @@ const App = () => {
             Kids Mode
           </label>
         </div>
-        <div className="match-score">
+        <div className="match-score" title={TOOLTIP_TEXTS.FILTER_MATCH_SCORE}>
           <label for="matchScore">Filter Match Score: </label>
           <input
             type="number"
@@ -303,15 +395,20 @@ const App = () => {
             }
             onChange={(e) => {
               const val = parseInt(e.target.value, 10)
+              if (val > 100 || val < 0) return
               handleProfileSettingUpdate({
                 setting: "matchScoreFilter",
                 value: val,
                 isInput: true,
               })
             }}
-          />
+          />{" "}
+          <span>%</span>
         </div>
-        <div className="checbox-container">
+        <div
+          className="checbox-container"
+          title={TOOLTIP_TEXTS.HIDE_WITHOUT_MATCH}
+        >
           <input
             type="checkbox"
             name="unMatchScore"
@@ -326,7 +423,7 @@ const App = () => {
             Hide shows without match score
           </label>
         </div>
-        <div className="checbox-container">
+        <div className="checbox-container" title={TOOLTIP_TEXTS.HIDE_DISLIKE}>
           <input
             type="checkbox"
             name="hideDisLiked"
@@ -341,7 +438,7 @@ const App = () => {
             Hide Disliked Shows
           </label>
         </div>
-        <div className="checbox-container">
+        <div className="checbox-container" title={TOOLTIP_TEXTS.HIDE_LIKE}>
           <input
             type="checkbox"
             name="hideLiked"
@@ -358,14 +455,18 @@ const App = () => {
         </div>
         <div className="buttons-container">
           <button onClick={() => setChanges()}>Apply</button>
-          {(profileList[selectedProfile] || {}).isDesignMode && (
-            <button
-              disabled={(undoList[selectedProfile] || []).length === 0}
-              onClick={() => undoChange()}
-            >
-              Undo
-            </button>
-          )}
+
+          <button
+            disabled={
+              !(
+                (profileList[selectedProfile] || {}).isDesignMode &&
+                (undoList[selectedProfile] || []).length > 0
+              )
+            }
+            onClick={() => undoChange()}
+          >
+            Undo
+          </button>
         </div>
       </div>
     </div>

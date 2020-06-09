@@ -87,11 +87,8 @@ chrome.storage.local.get(
 
     setInterval(() => {
       addMarkersToCard()
-    }, 500)
-
-    setInterval(() => {
       makeMatchAPIFetchRequest()
-    }, 5000)
+    }, 500)
   }
 )
 
@@ -127,7 +124,7 @@ const addMarkersToCard = (reInit = false) => {
 
     const moddedVideoState = getShowToggleStatus(videoId)
 
-    if (typeof moddedVideoState !== undefined) {
+    if (typeof moddedVideoState !== "undefined") {
       resetVolatileContainerClasses()
       elemClass = `extension-card-${statusMapsReverse[moddedVideoState]}`
       if (moddedVideoState === 1) {
@@ -159,7 +156,7 @@ const addMarkersToCard = (reInit = false) => {
 
       const moddedVideoState = getShowToggleStatus(videoId)
 
-      if (typeof moddedVideoState !== undefined) {
+      if (typeof moddedVideoState !== "undefined") {
         resetCardClasses(x)
         elemClass = `extension-card-${statusMapsReverse[moddedVideoState]}`
         if (moddedVideoState === 1) {
@@ -197,7 +194,7 @@ const addMarkersToCard = (reInit = false) => {
 
     const moddedVideoState = getShowToggleStatus(videoId)
 
-    if (typeof moddedVideoState !== undefined) {
+    if (typeof moddedVideoState !== "undefined") {
       resetBigRowDOMClasses()
       elemClass = `extension-card-${statusMapsReverse[moddedVideoState]}`
       if (moddedVideoState === 1) {
@@ -219,7 +216,7 @@ const addMarkersToCard = (reInit = false) => {
 
     const moddedVideoState = getShowToggleStatus(videoId)
 
-    if (typeof moddedVideoState !== undefined) {
+    if (typeof moddedVideoState !== "undefined") {
       resetHeaderCardClasses()
       elemClass = `extension-card-${statusMapsReverse[moddedVideoState]}`
       if (moddedVideoState === 1) {
@@ -248,22 +245,26 @@ const addControllerCard = (elem, videoId, videoName) => {
 
     divNode.innerHTML = `
       <div class="extension-video-toggle-container" data-video-id=${videoId} data-video-name="${videoName}"> 
-        <span class="extension-video-toggle-action pin-remove" ${
-          ((videoStates[videoId] || {}).action === "hide" && "active") || ""
-        } data-action-type="hide">
+        
+      <span title="Click to toggle whether the show is hidden" class="extension-video-toggle-action pin-remove" ${
+        ((videoStates[videoId] || {}).action === "hide" && "active") || ""
+      } data-action-type="hide">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><path fill="context-fill" d="M11.414 10l2.293-2.293a1 1 0 0 0 0-1.414 4.418 4.418 0 0 0-.8-.622L11.425 7.15h.008l-4.3 4.3v-.017l-1.48 1.476a3.865 3.865 0 0 0 .692.834 1 1 0 0 0 1.37-.042L10 11.414l3.293 3.293a1 1 0 0 0 1.414-1.414zm3.293-8.707a1 1 0 0 0-1.414 0L9.7 4.882A2.382 2.382 0 0 1 8 2.586V2a1 1 0 0 0-1.707-.707l-5 5A1 1 0 0 0 2 8h.586a2.382 2.382 0 0 1 2.3 1.7l-3.593 3.593a1 1 0 1 0 1.414 1.414l12-12a1 1 0 0 0 0-1.414zm-9 6a4.414 4.414 0 0 0-1.571-1.015l2.143-2.142a4.4 4.4 0 0 0 1.013 1.571 4.191 4.191 0 0 0 .9.684L6.39 8.2a4.2 4.2 0 0 0-.683-.907z"></path></svg>
         </span>
-        <span class="extension-video-toggle-action pin-out ${
+
+        <span title="Click to toggle whether the show is dimmed" class="extension-video-toggle-action pin-out ${
           ((videoStates[videoId] || {}).action === "dim" && "active") || ""
         }" data-action-type="dim">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><path fill="context-fill" d="M14.707 13.293L11.414 10l2.293-2.293a1 1 0 0 0 0-1.414A4.384 4.384 0 0 0 10.586 5h-.172A2.415 2.415 0 0 1 8 2.586V2a1 1 0 0 0-1.707-.707l-5 5A1 1 0 0 0 2 8h.586A2.415 2.415 0 0 1 5 10.414v.169a4.036 4.036 0 0 0 1.337 3.166 1 1 0 0 0 1.37-.042L10 11.414l3.293 3.293a1 1 0 0 0 1.414-1.414zm-7.578-1.837A2.684 2.684 0 0 1 7 10.583v-.169a4.386 4.386 0 0 0-1.292-3.121 4.414 4.414 0 0 0-1.572-1.015l2.143-2.142a4.4 4.4 0 0 0 1.013 1.571A4.384 4.384 0 0 0 10.414 7h.172a2.4 2.4 0 0 1 .848.152z"></path></svg>
         </span>
-        <span class="extension-video-toggle-action pinned ${
+
+        <span title="Click to toggle whether the show is shown" class="extension-video-toggle-action pinned ${
           ((videoStates[videoId] || {}).action === "show" && "active") || ""
         }" data-action-type="show">
         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><path fill="context-fill" d="M10.53 9.47L8.25 7.19 9.8 5.643a.694.694 0 0 0 0-.98 3.04 3.04 0 0 0-2.161-.894h-.122A1.673 1.673 0 0 1 5.846 2.1v-.408A.693.693 0 0 0 4.664 1.2L1.2 4.664a.693.693 0 0 0 .49 1.182h.41a1.672 1.672 0 0 1 1.669 1.671v.117a2.8 2.8 0 0 0 .925 2.192.693.693 0 0 0 .949-.026L7.19 8.251l2.28 2.28a.75.75 0 0 0 1.06-1.061z"></path></svg>
         </span>
-      </div>
+
+        </div>
       `
     elem.appendChild(divNode)
     addClickListeners()
@@ -296,12 +297,12 @@ const addClickListeners = () => {
 }
 
 const handleShowToggleClick = (payload) => {
-  const { videoId, videoName, actionType, parentElement } = payload
+  const { videoId, videoName, actionType } = payload
   let actionToSet = actionType
 
   if (videoStates[videoId] && videoStates[videoId].action === actionToSet) {
     delete videoStates[videoId]
-    actionToSet = undefined
+    actionToSet = "undefined"
   } else {
     videoStates[videoId] = {
       videoId,
@@ -311,6 +312,8 @@ const handleShowToggleClick = (payload) => {
   }
 
   addToFetchQueue(videoId)
+
+  console.log(111, videoStates, videoId)
 
   const videoElementDOM = Array.from(
     document.querySelectorAll(
@@ -358,6 +361,7 @@ const handleShowToggleClick = (payload) => {
   try {
     undoList = [videoId, ...(undoList || [].filter((v) => v !== videoId))]
     allProfileVideoStates[settings.profileId] = videoStates
+    console.log(1111, allProfileSelectionUndos)
     allProfileSelectionUndos[settings.profileId] = undoList
     chrome.storage.local.set({
       profileVideoStates: allProfileVideoStates,
@@ -476,6 +480,7 @@ const makeMatchAPIFetchRequest = () => {
       })
         .then((response) => response.json())
         .then((data) => {
+          console.log("## FETCH REQUEST SUCCESS ##")
           Object.keys(data.jsonGraph.videos).forEach((a) => {
             delete pendingMatchAPIRequests[a]
             successMatchAPIRequests[a] = true
@@ -483,6 +488,8 @@ const makeMatchAPIFetchRequest = () => {
               ((data.jsonGraph.videos[a].userRating || {}).value || {})
                 .matchScore || false
           })
+          console.log(1111, videoIdRatings, videoStates)
+          // addMarkersToCard()
         })
         .catch((err) => console.log("response err ===> ", err))
     }
@@ -516,6 +523,20 @@ const getShowToggleStatus = (videoId) => {
 
   let status = 0
 
+  const isVideoFromContinueWatch = document
+    .querySelector('[data-list-context="continueWatching"]')
+    .querySelector(`[data-extension-marked="${videoId}"]`)
+    ? true
+    : false
+
+  const isVideoFromMylist = document
+    .querySelector('[data-list-context="queue"]')
+    .querySelector(`[data-extension-marked="${videoId}"]`)
+    ? true
+    : false
+
+  const isVideoFromList = isVideoFromContinueWatch || isVideoFromMylist
+
   if (isDesignMode) {
     if (!videoStates[videoId]) {
       isKidsMode ? (status = 1) : (status = 2)
@@ -543,14 +564,15 @@ const getShowToggleStatus = (videoId) => {
     !isKidsMode &&
     videoIdRatings[videoId] &&
     matchScoreFilter &&
-    videoIdRatings[videoId] < matchScoreFilter
+    videoIdRatings[videoId] < matchScoreFilter &&
+    !isVideoFromList
   ) {
     status = isDesignMode ? 1 : 0
   }
 
   if (
     videoStates[videoId] &&
-    typeof videoStates[videoId].thumbs !== undefined &&
+    typeof videoStates[videoId].thumbs !== "undefined" &&
     videoStates[videoId].thumbs !== null
   ) {
     status = isDesignMode || !isKidsMode ? 2 : 0
@@ -558,7 +580,7 @@ const getShowToggleStatus = (videoId) => {
     if (hideDisLiked && videoStates[videoId].thumbs === 0) {
       status = isDesignMode ? 1 : 0
     }
-    if (hideLiked && videoStates[videoId].thumbs === 1) {
+    if (hideLiked && videoStates[videoId].thumbs === 1 && !isVideoFromList) {
       status = isDesignMode ? 1 : 0
     }
   }
@@ -571,9 +593,15 @@ const getShowToggleStatus = (videoId) => {
     status = 2
   }
 
-  if (videoIdRatings[videoId] === false && hideWithoutMatch) {
+  if (
+    videoIdRatings[videoId] === false &&
+    hideWithoutMatch &&
+    !isVideoFromList
+  ) {
     status = isDesignMode ? 1 : 0
   }
+
+  // console.log(9999, status, videoId, videoStates)
 
   return status
 }

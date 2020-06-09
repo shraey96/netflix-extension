@@ -24,7 +24,26 @@
 .extension-video-toggle-container span svg {
   height: 12px;
   width: 12px;
+  position: relative;
 }
+
+.tooltip {
+  visibility: hidden;
+  width: 120px;
+  background-color: black;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 5px 0;
+
+  /* Position the tooltip */
+  position: absolute;
+  z-index: 1;
+  bottom: 100%;
+  left: 50%;
+  margin-left: -60px;
+}
+
 .extension-video-toggle-container span svg path {
   fill: #fff;
   transition: all 0.3s ease-in-out;
@@ -36,6 +55,10 @@
 .extension-video-toggle-container span.active svg path,
 .extension-video-toggle-container span:hover svg path {
   fill: #000;
+}
+
+.extension-video-toggle-container span:hover .tooltip {
+  visibility: visible;
 }
 
 span.extension-card-dim,
