@@ -211,13 +211,45 @@ const App = () => {
 
   const handleProfileSelect = (profile) => {
     toggleSelectedProfile(profile)
+    if (profile !== selectedProfile) {
+      isPasswordVerified.current = false
+    }
   }
 
   const handleProfileSettingUpdate = ({ isInput = false, setting, value }) => {
     // check if profile requires password //
 
-    if (profileList[selectedProfile].password) {
-      alert("password required...")
+    const passwordType = profileList[selectedProfile].password
+      ? "user"
+      : "admin"
+
+    if (!isPasswordVerified.current) {
+      const promptPassword = prompt(
+        `Please enter ${
+          passwordType === "user" ? "profile" : "service-account"
+        } password`
+      )
+
+      if (promptPassword == null || promptPassword == "") {
+        alert("no password entered...")
+        return
+      } else {
+        let isVerified = false
+        if (passwordType === "user") {
+          isVerified = profileList[selectedProfile].password === promptPassword
+        }
+
+        if (passwordType === "admin") {
+          isVerified = promptPassword === "admin"
+        }
+
+        if (isVerified) {
+          isPasswordVerified.current = true
+        } else {
+          alert("invalid password ...")
+          return
+        }
+      }
     }
 
     if (isInput) {
