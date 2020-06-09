@@ -12,7 +12,6 @@ const DEFAUL_PROFILE = {
 }
 
 const App = () => {
-  const [settings, setSettings] = useState({})
   const [undoList, setUndoList] = useState({})
   const [netflixTabs, setNetflixTabs] = useState([])
 
@@ -26,7 +25,9 @@ const App = () => {
   const [fieldInput, setFieldInput] = useState("")
   const [newPasswordInput, setNewPasswordInput] = useState(false)
 
-  const prevDesignMode = useRef(settings.isDesignMode || false)
+  const prevDesignMode = useRef(false)
+
+  const isPasswordVerified = useRef(false)
 
   const setChanges = () => {
     chrome.storage.local.set(
@@ -186,7 +187,6 @@ const App = () => {
         })
       }
       if (changePasswordMode === "newPassword") {
-        console.log("121212", fieldInput, newPasswordInput)
         if (fieldInput !== newPasswordInput) {
           alert("passwords do not match ...")
         } else {
@@ -215,6 +215,10 @@ const App = () => {
 
   const handleProfileSettingUpdate = ({ isInput = false, setting, value }) => {
     // check if profile requires password //
+
+    if (profileList[selectedProfile].password) {
+      alert("password required...")
+    }
 
     if (isInput) {
       updateProfileList((prevProfiles) => ({
@@ -252,7 +256,6 @@ const App = () => {
 
   console.log(
     234,
-    settings,
     profileList,
     selectedProfile,
     profileList[selectedProfile],
