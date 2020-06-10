@@ -41,6 +41,18 @@ button {
   }
 }
 
+.close-icon-container {
+  cursor: pointer;
+  position: fixed;
+  right: 10px;
+  top: 10px;
+  width: 15px;
+  height: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .profiles {
   margin-bottom: 8px;
   .profile-selector {
@@ -63,12 +75,12 @@ button {
 
   .profile-action-buttons {
     display: flex;
-    flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     margin: 8px 0;
     button {
       width: 130px;
       margin: 8px 0;
+      margin-right: 8px;
     }
   }
   input {

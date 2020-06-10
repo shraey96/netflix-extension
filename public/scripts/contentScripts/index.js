@@ -519,6 +519,7 @@ const getShowToggleStatus = (videoId) => {
     hideDisLiked,
     hideLiked,
     hideWithoutMatch,
+    dimMatchScoreFitler,
   } = settings
 
   let status = 0
@@ -568,6 +569,9 @@ const getShowToggleStatus = (videoId) => {
     !isVideoFromList
   ) {
     status = isDesignMode ? 1 : 0
+    if (dimMatchScoreFitler) {
+      status = 1
+    }
   }
 
   if (

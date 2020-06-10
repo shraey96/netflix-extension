@@ -25,23 +25,25 @@ const App = () => {
   const [fieldInput, setFieldInput] = useState("")
   const [newPasswordInput, setNewPasswordInput] = useState(false)
 
-  const prevDesignMode = useRef(false)
-
   const isPasswordVerified = useRef(false)
 
   const setChanges = () => {
-    chrome.storage.local.set(
-      {
-        profileList: profileList,
-        lastUsedProfile: selectedProfile,
-      },
-      () => {
-        sendMsg({
-          type: "settingsUpdate",
-          ...(profileList[selectedProfile] || {}),
-        })
-      }
-    )
+    if (addProfileMode || changePasswordMode) {
+      manageProfileUpdateActions(true)
+    } else {
+      chrome.storage.local.set(
+        {
+          profileList: profileList,
+          lastUsedProfile: selectedProfile,
+        },
+        () => {
+          sendMsg({
+            type: "settingsUpdate",
+            ...(profileList[selectedProfile] || {}),
+          })
+        }
+      )
+    }
   }
 
   useEffect(() => {
@@ -120,7 +122,7 @@ const App = () => {
 
   const undoChange = () => {
     const profileUndos = undoList[selectedProfile]
-    console.log(profileUndos)
+
     if (profileUndos.length > 0) {
       sendMsg({ type: "itemUndo", videoId: profileUndos[0] })
       setUndoList((prevList) => ({
@@ -142,64 +144,79 @@ const App = () => {
 
   const handleEnter = async (keyCode) => {
     if (keyCode === 13) {
-      if (addProfileMode === "newProfile") {
-        if (
-          Object.values(profileList).some((x) => x.profileName === fieldInput)
-        ) {
-          alert("profile with same name exists...")
-        } else {
-          const profileListClone = { ...profileList }
-          const clearedFieldInput = fieldInput.replace(" ", "_")
-          profileListClone[clearedFieldInput] = {
-            profileName: fieldInput,
-            profileId: clearedFieldInput,
-          }
-          chrome.storage.local.set({ profileList: profileListClone }, () => {
-            updateProfileList(profileListClone)
-            toggleSelectedProfile(clearedFieldInput)
-            resetInputStates()
-            alert("profile added...")
-          })
-        }
-      }
-      if (addProfileMode === "renameProfile") {
-        if (
-          Object.values(profileList).some((x) => x.profileName === fieldInput)
-        ) {
-          alert("profile with same name exists...")
-        } else {
-          const profileListClone = { ...profileList }
-          profileListClone[selectedProfile].profileName = fieldInput
-          chrome.storage.local.set({ profileList: profileListClone }, () => {
-            updateProfileList(profileListClone)
-            resetInputStates()
-            alert("profile name updated...")
-          })
-        }
-      }
-      if (changePasswordMode === "changePassword") {
+      manageProfileUpdateActions()
+    }
+  }
+
+  const manageProfileUpdateActions = (withSave = false) => {
+    if (addProfileMode === "newProfile") {
+      if (
+        Object.values(profileList).some((x) => x.profileName === fieldInput)
+      ) {
+        alert("profile with same name exists...")
+      } else if (fieldInput === "") {
+        alert(`profile name cannot be blank`)
+      } else {
         const profileListClone = { ...profileList }
-        profileListClone[selectedProfile].password = fieldInput
+        const clearedFieldInput = fieldInput.replace(" ", "_")
+        profileListClone[clearedFieldInput] = {
+          profileName: fieldInput,
+          profileId: clearedFieldInput,
+        }
+        chrome.storage.local.set({ profileList: profileListClone }, () => {
+          updateProfileList(profileListClone)
+          toggleSelectedProfile(clearedFieldInput)
+          resetInputStates()
+          alert("profile added...")
+        })
+      }
+    }
+    if (addProfileMode === "renameProfile") {
+      if (
+        Object.values(profileList).some((x) => x.profileName === fieldInput)
+      ) {
+        alert("profile with same name exists...")
+      } else if (fieldInput === "") {
+        alert(`profile name cannot be blank`)
+      } else {
+        const profileListClone = { ...profileList }
+        profileListClone[selectedProfile].profileName = fieldInput
+        chrome.storage.local.set({ profileList: profileListClone }, () => {
+          updateProfileList(profileListClone)
+          resetInputStates()
+          alert("profile name updated...")
+        })
+      }
+    }
+    if (changePasswordMode === "changePassword") {
+      const profileListClone = { ...profileList }
+      profileListClone[selectedProfile].password = fieldInput
+      chrome.storage.local.set({ profileList: profileListClone }, () => {
+        updateProfileList(profileListClone)
+        resetInputStates()
+        alert("password changed...")
+      })
+    }
+    if (changePasswordMode === "newPassword") {
+      if (fieldInput !== newPasswordInput) {
+        alert("passwords do not match ...")
+      } else if (fieldInput === "" || newPasswordInput === "") {
+        alert("password cannot be blank")
+      } else {
+        const profileListClone = { ...profileList }
+        profileListClone[selectedProfile].password = newPasswordInput
         chrome.storage.local.set({ profileList: profileListClone }, () => {
           updateProfileList(profileListClone)
           resetInputStates()
           alert("password changed...")
         })
       }
-      if (changePasswordMode === "newPassword") {
-        if (fieldInput !== newPasswordInput) {
-          alert("passwords do not match ...")
-        } else {
-          const profileListClone = { ...profileList }
-          profileListClone[selectedProfile].password = newPasswordInput
-          chrome.storage.local.set({ profileList: profileListClone }, () => {
-            updateProfileList(profileListClone)
-            resetInputStates()
-            alert("password changed...")
-          })
-        }
-      }
     }
+    setTimeout(() => {
+      if (withSave) {
+        setChanges()
+      }
+    }, 300)
   }
 
   const resetInputStates = () => {
@@ -210,18 +227,46 @@ const App = () => {
   }
 
   const handleProfileSelect = (profile) => {
-    toggleSelectedProfile(profile)
-    if (profile !== selectedProfile) {
-      isPasswordVerified.current = false
+    if (managePasswordAuth(profile)) {
+      toggleSelectedProfile(profile)
+      if (profile !== selectedProfile) {
+        isPasswordVerified.current = false
+      }
     }
   }
 
   const handleProfileSettingUpdate = ({ isInput = false, setting, value }) => {
     // check if profile requires password //
 
-    const passwordType = profileList[selectedProfile].password
-      ? "user"
-      : "admin"
+    const bypass = setting === "isDesignMode" && value === false
+
+    const isPasswordAuth =
+      (profileList[selectedProfile] || {}).passwordProtectForSettings || bypass
+        ? true
+        : managePasswordAuth()
+
+    if (isPasswordAuth)
+      if (isInput) {
+        updateProfileList((prevProfiles) => ({
+          ...prevProfiles,
+          [selectedProfile]: {
+            ...prevProfiles[selectedProfile],
+            [setting]: value,
+          },
+        }))
+      } else {
+        updateProfileList((prevProfiles) => ({
+          ...prevProfiles,
+          [selectedProfile]: {
+            ...prevProfiles[selectedProfile],
+            [setting]: !(prevProfiles[selectedProfile] || {})[setting],
+          },
+        }))
+      }
+  }
+
+  const managePasswordAuth = (user = selectedProfile) => {
+    const passwordType = profileList[user].password ? "user" : "admin"
 
     if (!isPasswordVerified.current) {
       const promptPassword = prompt(
@@ -232,11 +277,11 @@ const App = () => {
 
       if (promptPassword == null || promptPassword == "") {
         alert("no password entered...")
-        return
+        return false
       } else {
         let isVerified = false
         if (passwordType === "user") {
-          isVerified = profileList[selectedProfile].password === promptPassword
+          isVerified = profileList[user].password === promptPassword
         }
 
         if (passwordType === "admin") {
@@ -245,29 +290,15 @@ const App = () => {
 
         if (isVerified) {
           isPasswordVerified.current = true
+          return true
         } else {
           alert("invalid password ...")
-          return
+          return false
         }
       }
     }
-
-    if (isInput) {
-      updateProfileList((prevProfiles) => ({
-        ...prevProfiles,
-        [selectedProfile]: {
-          ...prevProfiles[selectedProfile],
-          [setting]: value,
-        },
-      }))
-    } else {
-      updateProfileList((prevProfiles) => ({
-        ...prevProfiles,
-        [selectedProfile]: {
-          ...prevProfiles[selectedProfile],
-          [setting]: !(prevProfiles[selectedProfile] || {})[setting],
-        },
-      }))
+    if (isPasswordVerified.current) {
+      return true
     }
   }
 
@@ -286,6 +317,42 @@ const App = () => {
     }
   }
 
+  const handleApplyClick = () => {
+    if (addProfileMode || changePasswordMode) {
+      manageProfileUpdateActions()
+    } else {
+      sendMsg({
+        type: "settingsUpdate",
+        ...(profileList[selectedProfile] || {}),
+      })
+    }
+  }
+
+  const handleSettingsClose = () => {
+    chrome.storage.local.get(
+      {
+        profileList: {},
+      },
+      (result) => {
+        console.log("Value currently is ", result)
+        if (result) {
+          const areOldProfilesSame =
+            JSON.stringify(result.profileList) === JSON.stringify(profileList)
+          if (areOldProfilesSame) {
+            window.close()
+          } else {
+            const r = window.confirm(
+              " The settings you changed have not been Saved or Applied, press OK to discard changes or Cancel to return to settings."
+            )
+            if (r) {
+              window.close()
+            }
+          }
+        }
+      }
+    )
+  }
+
   console.log(
     234,
     profileList,
@@ -298,6 +365,12 @@ const App = () => {
 
   return (
     <div className="app-wrapper">
+      <div
+        className="close-icon-container"
+        onClick={() => handleSettingsClose()}
+      >
+        X
+      </div>
       <div className="profiles">
         <div className="profile-selector">
           <label for="profileList">Choose Profile:</label>
@@ -393,7 +466,7 @@ const App = () => {
             id="designMode"
             className="input-checkbox"
             disabled={!selectedProfile}
-            checked={(profileList[selectedProfile] || {}).isDesignMode}
+            checked={(profileList[selectedProfile] || {}).isDesignMode || false}
             onChange={() =>
               handleProfileSettingUpdate({ setting: "isDesignMode" })
             }
@@ -411,13 +484,33 @@ const App = () => {
             name="kidsMode"
             id="kidsMode"
             className="input-checkbox"
-            checked={(profileList[selectedProfile] || {}).isKidsMode}
+            checked={(profileList[selectedProfile] || {}).isKidsMode || false}
             onChange={() =>
               handleProfileSettingUpdate({ setting: "isKidsMode" })
             }
           />
           <label className="label" for="kidsMode">
             Kids Mode
+          </label>
+        </div>
+        <div className="checbox-container">
+          <input
+            type="checkbox"
+            name="passwordProtectForSettings"
+            id="passwordProtectForSettings"
+            className="input-checkbox"
+            checked={
+              (profileList[selectedProfile] || {}).passwordProtectForSettings ||
+              false
+            }
+            onChange={() =>
+              handleProfileSettingUpdate({
+                setting: "passwordProtectForSettings",
+              })
+            }
+          />
+          <label className="label" for="passwordProtectForSettings">
+            Password protect to change settings
           </label>
         </div>
         <div className="match-score" title={TOOLTIP_TEXTS.FILTER_MATCH_SCORE}>
@@ -449,7 +542,9 @@ const App = () => {
             name="unMatchScore"
             id="unMatchScore"
             className="input-checkbox"
-            checked={(profileList[selectedProfile] || {}).hideWithoutMatch}
+            checked={
+              (profileList[selectedProfile] || {}).hideWithoutMatch || false
+            }
             onChange={() =>
               handleProfileSettingUpdate({ setting: "hideWithoutMatch" })
             }
@@ -458,13 +553,33 @@ const App = () => {
             Hide shows without match score
           </label>
         </div>
+        <div
+          className="checbox-container"
+          title={TOOLTIP_TEXTS.HIDE_WITHOUT_MATCH}
+        >
+          <input
+            type="checkbox"
+            name="dimMatchScoreFitler"
+            id="dimMatchScoreFitler"
+            className="input-checkbox"
+            checked={
+              (profileList[selectedProfile] || {}).dimMatchScoreFitler || false
+            }
+            onChange={() =>
+              handleProfileSettingUpdate({ setting: "dimMatchScoreFitler" })
+            }
+          />
+          <label className="label" for="unMatchScore">
+            Dim instead of hide with match score
+          </label>
+        </div>
         <div className="checbox-container" title={TOOLTIP_TEXTS.HIDE_DISLIKE}>
           <input
             type="checkbox"
             name="hideDisLiked"
             id="hideDisLiked"
             className="input-checkbox"
-            checked={(profileList[selectedProfile] || {}).hideDisLiked}
+            checked={(profileList[selectedProfile] || {}).hideDisLiked || false}
             onChange={() =>
               handleProfileSettingUpdate({ setting: "hideDisLiked" })
             }
@@ -479,7 +594,7 @@ const App = () => {
             name="hideLiked"
             id="hideLiked"
             className="input-checkbox"
-            checked={(profileList[selectedProfile] || {}).hideLiked}
+            checked={(profileList[selectedProfile] || {}).hideLiked || false}
             onChange={() =>
               handleProfileSettingUpdate({ setting: "hideLiked" })
             }
@@ -489,8 +604,7 @@ const App = () => {
           </label>
         </div>
         <div className="buttons-container">
-          <button onClick={() => setChanges()}>Apply</button>
-
+          <button onClick={() => handleSettingsClose()}>Cancel</button>
           <button
             disabled={
               !(
@@ -499,8 +613,23 @@ const App = () => {
               )
             }
             onClick={() => undoChange()}
+            title="Undo to reverse the previous show/hide/dim selection on a Netflix show."
           >
             Undo
+          </button>
+          <button
+            onClick={() => {
+              handleApplyClick()
+            }}
+            title="Pressing Apply will activate the settings but it will not save or remember the settings across browser restarts"
+          >
+            Apply
+          </button>
+          <button
+            onClick={() => setChanges()}
+            title=" Pressing Save will save and activate the settings to remember them across browser restarts. Saving settings is a paid feature which allows sharing saved settings also across our other web browsers which are using the same Paid Subscription Account."
+          >
+            Save
           </button>
         </div>
       </div>
