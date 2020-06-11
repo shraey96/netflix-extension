@@ -23,6 +23,7 @@ const App = () => {
   const [profileList, updateProfileList] = useState({})
 
   const [fieldInput, setFieldInput] = useState("")
+  const [profilePassword, setProfilePassword] = useState("")
   const [newPasswordInput, setNewPasswordInput] = useState(false)
 
   const isPasswordVerified = useRef(false)
@@ -140,6 +141,14 @@ const App = () => {
 
     toggleAddProfileMode(isProfileMode)
     toggleChangePasswordMode(isPasswordMode)
+
+    if (isProfileMode || isProfileMode) {
+      setTimeout(() => {
+        document
+          .querySelector(`#${isProfileMode ? "profileName" : "password"}`)
+          .focus()
+      }, 300)
+    }
   }
 
   const handleEnter = async (keyCode) => {
@@ -163,6 +172,26 @@ const App = () => {
           profileName: fieldInput,
           profileId: clearedFieldInput,
         }
+
+        if (profilePassword) {
+          const promptPassword = prompt(`Please confirm password`)
+
+          if (
+            promptPassword == null ||
+            promptPassword == "" ||
+            promptPassword !== profilePassword
+          ) {
+            alert("invalid password entered...")
+            return false
+          } else {
+            profileListClone[clearedFieldInput] = {
+              profileName: fieldInput,
+              profileId: clearedFieldInput,
+              password: profilePassword,
+            }
+          }
+        }
+
         chrome.storage.local.set({ profileList: profileListClone }, () => {
           updateProfileList(profileListClone)
           toggleSelectedProfile(clearedFieldInput)
@@ -189,29 +218,40 @@ const App = () => {
       }
     }
     if (changePasswordMode === "changePassword") {
+      const oldPassword = profileList[selectedProfile].password
+
+      if (oldPassword) {
+        if (oldPassword !== profilePassword) {
+          alert("Old password invalid")
+          return
+        } else {
+          if (profilePassword) {
+            const promptPassword = prompt(`Please confirm password`)
+
+            if (
+              promptPassword == null ||
+              promptPassword == "" ||
+              promptPassword !== newPasswordInput
+            ) {
+              alert("invalid password entered...")
+              return false
+            }
+          }
+        }
+      }
+
+      if (!newPasswordInput) return
+
       const profileListClone = { ...profileList }
-      profileListClone[selectedProfile].password = fieldInput
+      profileListClone[selectedProfile].password = newPasswordInput
+
       chrome.storage.local.set({ profileList: profileListClone }, () => {
         updateProfileList(profileListClone)
         resetInputStates()
         alert("password changed...")
       })
     }
-    if (changePasswordMode === "newPassword") {
-      if (fieldInput !== newPasswordInput) {
-        alert("passwords do not match ...")
-      } else if (fieldInput === "" || newPasswordInput === "") {
-        alert("password cannot be blank")
-      } else {
-        const profileListClone = { ...profileList }
-        profileListClone[selectedProfile].password = newPasswordInput
-        chrome.storage.local.set({ profileList: profileListClone }, () => {
-          updateProfileList(profileListClone)
-          resetInputStates()
-          alert("password changed...")
-        })
-      }
-    }
+
     setTimeout(() => {
       if (withSave) {
         setChanges()
@@ -224,6 +264,7 @@ const App = () => {
     toggleChangePasswordMode(false)
     setFieldInput("")
     setNewPasswordInput("")
+    setProfilePassword("")
   }
 
   const handleProfileSelect = (profile) => {
@@ -235,10 +276,15 @@ const App = () => {
     }
   }
 
-  const handleProfileSettingUpdate = ({ isInput = false, setting, value }) => {
+  const handleProfileSettingUpdate = ({
+    isInput = false,
+    setting,
+    value,
+    skipAuth = false,
+  }) => {
     // check if profile requires password //
 
-    const bypass = setting === "isDesignMode" && value === false
+    const bypass = (setting === "isDesignMode" && value === false) || skipAuth
 
     const isPasswordAuth =
       (profileList[selectedProfile] || {}).passwordProtectForSettings || bypass
@@ -266,7 +312,7 @@ const App = () => {
   }
 
   const managePasswordAuth = (user = selectedProfile) => {
-    const passwordType = profileList[user].password ? "user" : "admin"
+    const passwordType = (profileList[user] || {}).password ? "user" : "admin"
 
     if (!isPasswordVerified.current) {
       const promptPassword = prompt(
@@ -303,17 +349,19 @@ const App = () => {
   }
 
   const handleProfileRemove = () => {
-    if (Object.keys(profileList).length <= 1) {
-      alert(`cannot remove last profile`)
-    } else {
-      updateProfileList((prevList) => {
-        const pClone = { ...prevList }
-        delete pClone[selectedProfile]
-        return pClone
-      })
-      const defaultProfile = Object.keys(profileList)[0]
-      toggleSelectedProfile(defaultProfile)
-      setChanges()
+    if (managePasswordAuth("admin")) {
+      if (Object.keys(profileList).length <= 1) {
+        alert(`cannot remove last profile`)
+      } else {
+        updateProfileList((prevList) => {
+          const pClone = { ...prevList }
+          delete pClone[selectedProfile]
+          return pClone
+        })
+        const defaultProfile = Object.keys(profileList)[0]
+        toggleSelectedProfile(defaultProfile)
+        setChanges()
+      }
     }
   }
 
@@ -358,7 +406,8 @@ const App = () => {
     profileList,
     selectedProfile,
     profileList[selectedProfile],
-    undoList[selectedProfile]
+
+    profilePassword
   )
 
   console.log(66666, changePasswordMode, addProfileMode)
@@ -403,55 +452,67 @@ const App = () => {
             </button>
           </div>
         </div>
-        {(addProfileMode || changePasswordMode) && (
-          <div className="input-container">
-            <label className="label" for="fieldInput">
-              {changePasswordMode ? "New Password: " : "Profile Name: "}
-            </label>
-            <input
-              type={
-                addProfileMode
-                  ? "text"
-                  : changePasswordMode
-                  ? "passowrd"
-                  : "passowrd"
-              }
-              value={fieldInput}
-              autoFocus
-              placeholder={
-                addProfileMode
-                  ? addProfileMode === "renameProfile"
-                    ? profileList[selectedProfile].profileName ||
-                      selectedProfile
-                    : "Profile Name"
-                  : changePasswordMode
-                  ? changePasswordMode === "changePassword"
-                    ? "Change Password"
-                    : "New Password"
-                  : ""
-              }
-              id="fieldInput"
-              onChange={(e) => setFieldInput(e.target.value)}
-              onKeyDown={(e) => handleEnter(e.keyCode)}
-            />
-            {changePasswordMode === "newPassword" && (
+        <div className="input-container">
+          <label className="label" for="profileName">
+            Profile Name:
+          </label>
+          <input
+            type="text"
+            value={
+              !addProfileMode
+                ? (profileList[selectedProfile] || {}).profileName || ""
+                : fieldInput
+            }
+            disabled={!addProfileMode}
+            placeholder={
+              addProfileMode === "renameProfile"
+                ? (profileList[selectedProfile] || {}).profileName || ""
+                : "Profile Name"
+            }
+            id="profileName"
+            onChange={(e) => setFieldInput(e.target.value)}
+            onKeyDown={(e) => handleEnter(e.keyCode)}
+          />
+        </div>
+        <div className="input-container">
+          <label className="label" for="password">
+            Profile Password:
+          </label>
+          <input
+            type="password"
+            value={
+              addProfileMode === "newProfile" || changePasswordMode
+                ? profilePassword
+                : (profileList[selectedProfile] || {}).password
+            }
+            disabled={!(addProfileMode === "newProfile" || changePasswordMode)}
+            placeholder={addProfileMode ? "New Password" : "Password"}
+            id="password"
+            onChange={(e) => {
+              setProfilePassword(e.target.value)
+            }}
+            onKeyDown={(e) => handleEnter(e.keyCode)}
+          />
+          {changePasswordMode === "changePassword" && (
+            <>
+              <label className="label" for="password">
+                New Password
+              </label>
               <input
-                type="passowrd"
+                type="password"
                 value={newPasswordInput || ""}
-                placeholder="confirm password"
+                placeholder="New Password"
                 id="fieldInput"
                 onChange={(e) => setNewPasswordInput(e.target.value)}
                 onKeyDown={(e) => handleEnter(e.keyCode)}
               />
-            )}
-          </div>
-        )}
+            </>
+          )}
+        </div>
+
         <div className="profile-action-buttons">
           <button onClick={() => handleProfileAction("changePassword")}>
             Change Password
-          </button>
-          <button onClick={() => handleProfileAction("newPassword")}>
-            New Password
           </button>
         </div>
       </div>
