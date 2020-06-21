@@ -27,7 +27,7 @@
 }
 
 .app-wrapper {
-  min-width: 300px;
+  min-width: 750px;
   padding: 20px;
 }
 
@@ -120,5 +120,19 @@ button {
   }
   .buttons-container {
     margin-top: 10px;
+  }
+}
+
+.input-container {
+  &.for-password {
+    display: flex;
+    align-items: center;
+    .profile-action-buttons {
+      margin: 0;
+      margin-left: 8px;
+      button {
+        margin: 0;
+      }
+    }
   }
 }
