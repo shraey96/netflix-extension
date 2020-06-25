@@ -6,6 +6,8 @@ import { TOOLTIP_TEXTS } from "./constants"
 
 import "./base.scss"
 
+import equal from "deep-equal"
+
 const DEFAUL_PROFILE = {
   profileName: "Default",
   profileId: "Default",
@@ -402,15 +404,17 @@ const App = () => {
   }
 
   const handleSettingsClose = () => {
+    if (addProfileMode || changePasswordMode) {
+      resetInputStates()
+      return
+    }
     chrome.storage.local.get(
       {
         profileList: {},
       },
       (result) => {
-        console.log("Value currently is ", result)
         if (result) {
-          const areOldProfilesSame =
-            JSON.stringify(result.profileList) === JSON.stringify(profileList)
+          const areOldProfilesSame = equal(result.profileList, profileList)
           if (areOldProfilesSame) {
             window.close()
           } else {
@@ -436,6 +440,7 @@ const App = () => {
   )
 
   console.log(66666, changePasswordMode, addProfileMode)
+  const isDisabled = addProfileMode || changePasswordMode
 
   return (
     <div className="app-wrapper">
@@ -550,7 +555,7 @@ const App = () => {
             name="designMode"
             id="designMode"
             className="input-checkbox"
-            disabled={!selectedProfile}
+            disabled={isDisabled || !selectedProfile}
             checked={(profileList[selectedProfile] || {}).isDesignMode || false}
             onChange={() =>
               handleProfileSettingUpdate({ setting: "isDesignMode" })
@@ -569,6 +574,7 @@ const App = () => {
             name="kidsMode"
             id="kidsMode"
             className="input-checkbox"
+            disabled={isDisabled}
             checked={(profileList[selectedProfile] || {}).isKidsMode || false}
             onChange={() =>
               handleProfileSettingUpdate({ setting: "isKidsMode" })
@@ -588,6 +594,7 @@ const App = () => {
               (profileList[selectedProfile] || {}).passwordProtectForSettings ||
               false
             }
+            disabled={isDisabled}
             onChange={() =>
               handleProfileSettingUpdate({
                 setting: "passwordProtectForSettings",
@@ -630,6 +637,7 @@ const App = () => {
             checked={
               (profileList[selectedProfile] || {}).hideWithoutMatch || false
             }
+            disabled={isDisabled}
             onChange={() =>
               handleProfileSettingUpdate({ setting: "hideWithoutMatch" })
             }
@@ -647,6 +655,7 @@ const App = () => {
             name="dimMatchScoreFitler"
             id="dimMatchScoreFitler"
             className="input-checkbox"
+            disabled={isDisabled}
             checked={
               (profileList[selectedProfile] || {}).dimMatchScoreFitler || false
             }
@@ -664,6 +673,7 @@ const App = () => {
             name="hideDisLiked"
             id="hideDisLiked"
             className="input-checkbox"
+            disabled={isDisabled}
             checked={(profileList[selectedProfile] || {}).hideDisLiked || false}
             onChange={() =>
               handleProfileSettingUpdate({ setting: "hideDisLiked" })
@@ -679,6 +689,7 @@ const App = () => {
             name="hideLiked"
             id="hideLiked"
             className="input-checkbox"
+            disabled={isDisabled}
             checked={(profileList[selectedProfile] || {}).hideLiked || false}
             onChange={() =>
               handleProfileSettingUpdate({ setting: "hideLiked" })
