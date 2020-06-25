@@ -506,9 +506,7 @@ const undoVideoState = (videoId) => {
 }
 
 const sendMessage = (msg) => {
-  chrome.runtime.sendMessage(msg, (response) => {
-    console.log(response)
-  })
+  chrome.runtime.sendMessage(msg, (response) => {})
 }
 
 const getShowToggleStatus = (videoId) => {
@@ -721,7 +719,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log("GOT MESSAGE ===> ", request)
   if (request.type === "settingsUpdate") {
     const shouldUpdate =
-      settings.isDesignMode !== request.isDesignMode ||
+      // settings.isDesignMode !== request.isDesignMode ||
       settings.isKidsMode !== request.isKidsMode ||
       settings.profileId !== request.profileId
 
@@ -730,7 +728,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       undoList = allProfileSelectionUndos[request.profileId] || []
     }
 
-    settings = { ...request }
+    settings = { ...settings, ...request }
 
     if (shouldUpdate) {
       addMarkersToCard(true)
@@ -739,15 +737,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 
     makeMatchAPIFetchRequest()
+    sendResponse({ received: true })
   }
   if (request.type === "toggleDesignMode") {
-    if (settings.profileId !== request.profileId) {
-      videoStates = allProfileVideoStates[request.profileId] || {}
-      undoList = allProfileSelectionUndos[request.profileId] || []
-      resetIconActiveClasses()
-    }
-    settings = { ...request }
+    // if (settings.profileId !== request.profileId) {
+    //   videoStates = allProfileVideoStates[request.profileId] || {}
+    //   undoList = allProfileSelectionUndos[request.profileId] || []
+    //   resetIconActiveClasses()
+    // }
+
+    settings = { ...settings, ...request }
+    resetIconActiveClasses()
     addMarkersToCard(true)
+  }
+
+  if (request.type === "checkDesignMode") {
+    sendMessage({
+      isDesignMode: settings.isDesignMode || false,
+      type: request.type,
+    })
   }
 
   if (request.type === "itemUndo") {
@@ -767,8 +775,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     } catch (error) {
       console.log(444, error)
     }
+    sendResponse({ received: true })
   }
 
   console.log("##### ", settings, videoStates, undoList)
-  sendResponse({ received: true })
 })

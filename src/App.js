@@ -28,6 +28,8 @@ const App = () => {
   const [profilePassword, setProfilePassword] = useState("")
   const [newPasswordInput, setNewPasswordInput] = useState(false)
 
+  const [isDesignMode, toggleDesignMode] = useState(false)
+
   const isPasswordVerified = useRef(false)
 
   const setChanges = () => {
@@ -49,10 +51,19 @@ const App = () => {
     }
   }
 
+  const addMsgListener = () => {
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.type === "checkDesignMode") {
+        toggleDesignMode(request.isDesignMode)
+      }
+    })
+  }
+
   useEffect(() => {
     chrome.tabs.query({}, (tabs) => {
       const reqTabs = tabs.filter((t) => t.url.includes("netflix.com/"))
       setNetflixTabs(reqTabs)
+      addMsgListener()
     })
     chrome.storage.local.get(
       {
@@ -85,6 +96,14 @@ const App = () => {
   }, [])
 
   useEffect(() => {
+    if (netflixTabs.length > 0) {
+      sendMsg({
+        type: "checkDesignMode",
+      })
+    }
+  }, [netflixTabs.length])
+
+  useEffect(() => {
     if (
       selectedProfile &&
       typeof (profileList[selectedProfile] || {}).isDesignMode !== undefined
@@ -104,23 +123,17 @@ const App = () => {
           profileList: updatedProfiles,
           lastUsedProfile: selectedProfile,
         })
-        sendMsg({
-          type: "toggleDesignMode",
-          ...updatedProfiles[selectedProfile],
-        })
+        // sendMsg({
+        //   type: "toggleDesignMode",
+        //   ...updatedProfiles[selectedProfile],
+        // })
       })
-      // optimize later
-      // prevDesignMode.current = settings.isDesignMode
     }
   }, [profileList, selectedProfile])
 
   const sendMsg = (message) => {
     netflixTabs.forEach((t) => {
-      chrome.tabs.sendMessage(t.id, message, (response) => {
-        // if (response) {
-        //   console.log(2222, response)
-        // }
-      })
+      chrome.tabs.sendMessage(t.id, message, (response) => {})
     })
   }
 
@@ -299,6 +312,17 @@ const App = () => {
     }
   }
 
+  const switchDesignMode = (value) => {
+    const isPasswordAuth = value === false ? true : managePasswordAuth()
+    if (isPasswordAuth) {
+      toggleDesignMode(value)
+      sendMsg({
+        type: "toggleDesignMode",
+        isDesignMode: value,
+      })
+    }
+  }
+
   const handleProfileSettingUpdate = ({
     isInput = false,
     setting,
@@ -310,7 +334,7 @@ const App = () => {
     const bypass = (setting === "isDesignMode" && value === false) || skipAuth
 
     const isPasswordAuth =
-      (profileList[selectedProfile] || {}).passwordProtectForSettings || bypass
+      !(profileList[selectedProfile] || {}).passwordProtectForSettings || bypass
         ? true
         : managePasswordAuth()
 
@@ -516,7 +540,13 @@ const App = () => {
                 : (profileList[selectedProfile] || {}).password || ""
             }
             disabled={!(addProfileMode === "newProfile" || changePasswordMode)}
-            placeholder={addProfileMode ? "New Password" : "Password"}
+            placeholder={
+              addProfileMode
+                ? (profileList[selectedProfile] || {}).password || ""
+                : changePasswordMode
+                ? "Password"
+                : ""
+            }
             id="password"
             onChange={(e) => {
               setProfilePassword(e.target.value)
@@ -556,9 +586,11 @@ const App = () => {
             id="designMode"
             className="input-checkbox"
             disabled={isDisabled || !selectedProfile}
-            checked={(profileList[selectedProfile] || {}).isDesignMode || false}
+            // checked={(profileList[selectedProfile] || {}).isDesignMode || false}
+            checked={isDesignMode}
             onChange={() =>
-              handleProfileSettingUpdate({ setting: "isDesignMode" })
+              // handleProfileSettingUpdate({ setting: "isDesignMode" })
+              switchDesignMode(!isDesignMode)
             }
           />
           <label className="label" for="designMode">
